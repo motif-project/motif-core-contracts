@@ -27,7 +27,7 @@ BitcoinPods are bootstrapped using restaked security available to the AVS of Eig
 
 Front end link: https://bitdsm.vercel.app/
 
-You can find the BitDSM examples [here](https://github.com/BitDSM/BitDSM-examples).
+You can find the [BitDSM examples here](https://github.com/BitDSM/BitDSM-examples).
 
 ## Usage
 
