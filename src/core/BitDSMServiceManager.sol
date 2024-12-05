@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IBitcoinPodManager.sol";
 import "../interfaces/IBitDSMRegistry.sol";
 import "../interfaces/IBitcoinPod.sol";
+import "../libraries/BitcoinUtils.sol";
 
 /**
  * @title BitDSM Service Manager
@@ -25,6 +26,8 @@ import "../interfaces/IBitcoinPod.sol";
  * - IBitDSMRegistry: Registry interface for BitDSM services and handling EigenLayer staking and delegation
  */
 contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager {
+    // Attach library to bytes type for direct usage with bytes variables
+    using BitcoinUtils for bytes;
     // State variables
     IBitcoinPodManager _bitcoinPodManager;
 
@@ -106,14 +109,18 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
             "Only operator that owns the pod can process withdrawal"
         );
         // check if the pod has a withdrawal request
-       require(_bitcoinPodManager.getBitcoinWithdrawalAddress(pod).length != 0, "No withdrawal request");
+       require(bytes(_bitcoinPodManager.getBitcoinWithdrawalAddress(pod)).length == 0, "Withdrawal request already exists");  
+        string memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
+
+        // verify the PSBT is constructed correctly
+        require(_verifyPSBTOutputs(psbtTransaction, withdrawAddress, amount), "Invalid PSBT");
         // verify the operator sign over psbt
-        bytes memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
         bytes32 messageHash = keccak256(abi.encodePacked(pod, amount, psbtTransaction, withdrawAddress));
         bytes32 ethSignedMessageHash = ECDSA.toEthSignedMessageHash(messageHash);
         address signer = ECDSA.recover(ethSignedMessageHash, signature);
         require(signer == msg.sender, "Invalid Operator signature");
 
+       
         // store the psbt in the pod
         _bitcoinPodManager.setSignedBitcoinWithdrawTransactionPod(pod, psbtTransaction);
         // emit the event
@@ -129,7 +136,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
             "Only operator that owns the pod can process withdrawal"
         );
         // get withdraw address from the pod
-        bytes memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
+        string memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
             // decode the transaction
         // check if the transaction is a withdrawal transaction
         // check if the withdrawal address appear as the recipient in the transaction 
@@ -155,11 +162,11 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
             "Only operator that owns the pod can confirm withdrawal"
         );
        require(
-           _bitcoinPodManager.getBitcoinWithdrawalAddress(pod).length != 0,
+           bytes(_bitcoinPodManager.getBitcoinWithdrawalAddress(pod)).length > 0 ,
            "No withdrawal request to confirm"
         );
 
-        bytes memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
+        string memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
     
         bytes32 messageHash = keccak256(abi.encodePacked(pod, transaction, withdrawAddress));
         bytes32 ethSignedMessageHash = ECDSA.toEthSignedMessageHash(messageHash);
@@ -168,6 +175,54 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         require(signer == msg.sender, "Invalid signature");
         _bitcoinPodManager.withdrawBitcoinAsTokens(pod);
     }
+   
+    /**
+    * @inheritdoc IBitDSMServiceManager
+     */
+    function verifyBTCAddress(string calldata btcAddress, bytes calldata script) external onlyRegisteredOperator(msg.sender) {
+        // extract publickeys from the script
+        (bytes memory operatorKey, bytes memory userKey) = BitcoinUtils.extractPublicKeys(script);
+        // check if userKey is 33 bytes
+        require(userKey.length == 33, "Invalid user key length. It should be 33 bytes");
+        // verify correct operator BTC key is used in script
+        require(_areEqual(operatorKey, IBitDSMRegistry(stakeRegistry).getOperatorBtcPublicKey(msg.sender)), "Invalid operator BTC key");
+        // get scriptPubKey
+        bytes memory scriptPubKey = BitcoinUtils.getScriptPubKey(script);
+        // convert scriptPubKey to bech32address
+        string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(scriptPubKey);
+        // verify the address is correct
+        require(_areEqual(bytes(bech32Address), bytes(btcAddress)), "Invalid BTC address");
+        emit BTCAddressVerified(msg.sender, btcAddress);
+    }
 
+    /**
+    * @notice Compare two bytes arrays of same size
+    * @param key1 The first bytes array to compare
+    * @param key2 The second bytes array to compare
+    * @return bool True if the arrays are equal, false otherwise
+    */
+    function _areEqual(bytes memory key1, bytes memory key2) internal pure returns (bool) {
+        if (key1.length != key2.length) return false; // Early exit for length mismatch
+        for (uint256 i = 0; i < key1.length; i++) {
+            if (key1[i] != key2[i]) return false; // Compare each byte
+        }
+        return true;
+    }
+
+   function _verifyPSBTOutputs(bytes calldata psbtBytes, string memory withdrawAddress, uint256 withdrawAmount) internal pure returns (bool) {
+        // Direct library call to extract outputs from the PSBT
+        BitcoinUtils.Output[] memory outputs = BitcoinUtils.extractVoutFromPSBT(psbtBytes);
+        
+        // Process each output
+        for(uint256 i = 0; i < outputs.length; i++) {
+            // convert the scriptPubKey to bech32 address
+            string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(outputs[i].scriptPubKey);
+            // return true if the address is correct and the amount is correct
+            if (_areEqual(bytes(bech32Address), bytes(withdrawAddress)) && outputs[i].value == withdrawAmount) {
+                return true;
+            }
+        }
+        return false;
+    }
 
 }

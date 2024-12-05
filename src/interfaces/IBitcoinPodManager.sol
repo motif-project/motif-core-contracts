@@ -48,7 +48,7 @@ interface IBitcoinPodManager {
      * @param pod The address of the pod to lookup
      * @return The Bitcoin withdrawal address as bytes
      */
-    function getBitcoinWithdrawalAddress(address pod) external view returns (bytes memory );
+    function getBitcoinWithdrawalAddress(address pod) external view returns (string memory );
 
    /**
      * @notice Gets the total value locked across all pods
@@ -128,14 +128,14 @@ interface IBitcoinPodManager {
      * @param pod The address of the pod 
      * @param withdrawAddress The address to which the Bitcoin is withdrawn
      */
-    event BitcoinWithdrawnFromPod(address indexed pod, bytes withdrawAddress);
+    event BitcoinWithdrawnFromPod(address indexed pod, string withdrawAddress);
     /**
      * @notice Event emitted when a Bitcoin withdrawal PSBT request is initiated
      * @param pod The address of the pod from where the Bitcoin is requested to be withdrawn
      * @param operator The address of the operator that will create and sign the PSBT
      * @param withdrawAddress The address to which the Bitcoin is withdrawn
      */
-    event BitcoinWithdrawalPSBTRequest(address indexed pod, address indexed operator, bytes withdrawAddress);
+    event BitcoinWithdrawalPSBTRequest(address indexed pod, address indexed operator, string withdrawAddress);
     /**
      * @notice Event emitted when a Bitcoin withdrawal complete transaction request is initiated
      * @param pod The address of the pod from where the Bitcoin is requested to be withdrawn
@@ -204,14 +204,14 @@ interface IBitcoinPodManager {
      * @param pod The address of the pod where the withdrawal is requested
      * @param withdrawAddress The Bitcoin address where funds should be withdrawn to
      */
-    function withdrawBitcoinPSBTRequest(address pod, bytes memory withdrawAddress) external;
+    function withdrawBitcoinPSBTRequest(address pod, string memory withdrawAddress) external;
     /**
      * @notice Initiates a Bitcoin withdrawal request from the pod owner 
      * @param pod The address of the pod where the withdrawal is requested
      * @param preSignedWithdrawTransaction The pre-signed Bitcoin transaction sent from the pod owner
      * @param withdrawAddress The Bitcoin address where funds should be withdrawn to
      */
-    function withdrawBitcoinCompleteTxRequest(address pod, bytes memory preSignedWithdrawTransaction, bytes memory withdrawAddress) external;
+    function withdrawBitcoinCompleteTxRequest(address pod, bytes memory preSignedWithdrawTransaction, string memory withdrawAddress) external;
     /**
      * @notice Withdraws Bitcoin as tokens from the pod
      * @param pod The address of the pod where the withdrawal is requested

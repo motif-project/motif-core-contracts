@@ -334,7 +334,7 @@ contract BitcoinPodManagerTest is Test {
         podManager.confirmBitcoinDeposit(podAddress, bytes32("deposit_tx"), 2);
 
         // Initiate withdrawal
-        bytes memory withdrawAddress = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa";
+        string memory withdrawAddress = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa";
         vm.prank(user);
         podManager.withdrawBitcoinPSBTRequest(podAddress, withdrawAddress);
 
@@ -493,7 +493,7 @@ contract BitcoinPodManagerTest is Test {
         podManager.confirmBitcoinDeposit(podAddress, bytes32("deposit_tx"), 2);
 
         // Initiate complete withdrawal
-        bytes memory withdrawAddress = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa";
+        string memory withdrawAddress = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa";
         bytes memory preSignedTx = "pre_signed_tx_data";
         vm.prank(user);
         podManager.withdrawBitcoinCompleteTxRequest(podAddress, preSignedTx, withdrawAddress);

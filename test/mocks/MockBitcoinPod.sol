@@ -49,13 +49,14 @@ contract MockBitcoinPod is IBitcoinPod {
         return locked;
     }
 
-    function mint(address _operator, uint256 amount) external {
+    function mint(address /*_operator*/, uint256 amount) external {
+        
         require(msg.sender == podManager, "Only manager can mint");
         require(!locked, "Pod is locked");
         bitcoinBalance += amount;
     }
 
-    function burn(address _operator, uint256 amount) external {
+    function burn(address /*_operator*/, uint256 amount) external {
         require(msg.sender == podManager, "Only manager can burn");
         require(!locked, "Pod is locked");
         require(bitcoinBalance >= amount, "Insufficient balance");

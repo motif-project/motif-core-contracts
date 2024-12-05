@@ -8,7 +8,7 @@ import {MockBitcoinPod} from "./MockBitcoinPod.sol";
 
 contract MockBitcoinPodManager is IBitcoinPodManager {
     mapping(address => BitcoinDepositRequest) public podToBitcoinDepositRequest;
-    mapping(address => bytes) public podToWithdrawalAddress;
+    mapping(address => string) public podToWithdrawalAddress;
     mapping(address => address) public podToApp;
     mapping(address => address) public userToPod;
     address public bitDSMServiceManager;
@@ -24,11 +24,11 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
         return podToBitcoinDepositRequest[pod];
     }
 
-    function getBitcoinWithdrawalAddress(address pod) external view returns (bytes memory) {
+    function getBitcoinWithdrawalAddress(address pod) external view returns (string memory) {
         return podToWithdrawalAddress[pod];
     }
 
-    function createPod(address operator, bytes memory btcAddress) external returns (address) {
+    function createPod(address operator, bytes memory /*_btcAddress*/) external returns (address) {
         require(userToPod[msg.sender] == address(0), "User already has a pod");
         
         address pod = address(new MockBitcoinPod(operator, address(this)));
@@ -77,18 +77,18 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
         delete podToBitcoinDepositRequest[pod];
     }
 
-    function withdrawBitcoinPSBTRequest(address pod, bytes memory withdrawAddress) external {
+    function withdrawBitcoinPSBTRequest(address pod, string memory withdrawAddress) external {
         require(userToPod[msg.sender] == pod, "Not pod owner");
-        require(podToWithdrawalAddress[pod].length == 0, "Withdrawal pending");
+        require(bytes(podToWithdrawalAddress[pod]).length == 0, "Withdrawal pending");
         require(!IBitcoinPod(pod).isLocked(), "Pod locked");
        
 
         podToWithdrawalAddress[pod] = withdrawAddress;
     }
 
-    function withdrawBitcoinCompleteTxRequest(address pod, bytes memory preSignedWithdrawTransaction, bytes memory withdrawAddress) external {
+    function withdrawBitcoinCompleteTxRequest(address pod, bytes memory /*_preSignedWithdrawTransaction*/, string memory withdrawAddress) external {
         require(userToPod[msg.sender] == pod, "Not pod owner");
-        require(podToWithdrawalAddress[pod].length == 0, "Withdrawal pending");
+        require(bytes(podToWithdrawalAddress[pod]).length == 0, "Withdrawal pending");
         require(!IBitcoinPod(pod).isLocked(), "Pod locked");
         require(podToApp[pod] == address(0), "Pod delegated");
 
@@ -97,7 +97,7 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
 
     function withdrawBitcoinAsTokens(address pod) external {
         require(msg.sender == bitDSMServiceManager, "Only service manager");
-        require(podToWithdrawalAddress[pod].length != 0, "No withdrawal request");
+        require(bytes(podToWithdrawalAddress[pod]).length != 0, "No withdrawal request");
 
         uint256 balance = IBitcoinPod(pod).getBitcoinBalance();
         IBitcoinPod(pod).burn(IBitcoinPod(pod).getOperator(), balance);
@@ -126,11 +126,11 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
         return bitDSMServiceManager;
     }
 
-    function getAppRegistry() external view returns (address) {
+    function getAppRegistry() external pure returns (address) {
         return address(0);
     }
 
-    function getBitDSMRegistry() external view returns (address) {
+    function getBitDSMRegistry() external pure returns (address) {
         return address(0);
     }
 }

@@ -141,7 +141,7 @@ contract BitcoinPodManager is
     }
 
     // @inheritdoc IBitcoinPodManager
-    function getBitcoinWithdrawalAddress(address pod) external view override returns (bytes memory) {
+    function getBitcoinWithdrawalAddress(address pod) external view override returns (string memory) {
         return _podToWithdrawalAddress[pod];
     }
 
@@ -342,9 +342,9 @@ contract BitcoinPodManager is
      * @dev Updates pod-to-withdrawal address mapping and emits BitcoinWithdrawalPSBTRequest event
      * @dev The operator will create and sign PSBT in response to this request
      */
-    function withdrawBitcoinPSBTRequest(address pod, bytes memory withdrawAddress) external whenNotPaused nonReentrant onlyPodOwner(pod){
-        require(_podToWithdrawalAddress[pod].length == 0, "Withdrawal already requested");
-        require(withdrawAddress.length > 0, "Invalid withdraw address");
+    function withdrawBitcoinPSBTRequest(address pod, string memory withdrawAddress) external whenNotPaused nonReentrant onlyPodOwner(pod){
+        require(bytes(_podToWithdrawalAddress[pod]).length == 0, "Withdrawal already requested");
+        require(bytes(withdrawAddress).length > 0, "Invalid withdraw address");
         // check if the pod is locked
         require(!IBitcoinPod(pod).isLocked(), "Pod is locked");
         // check if pod is undelegated
@@ -376,9 +376,9 @@ contract BitcoinPodManager is
      * @dev Updates pod-to-withdrawal address mapping and emits BitcoinWithdrawalCompleteTxRequest event
      * @dev The operator will complete signing the transaction in response to this request
      */
-    function withdrawBitcoinCompleteTxRequest(address pod, bytes memory preSignedWithdrawTransaction, bytes memory withdrawAddress) external whenNotPaused nonReentrant onlyPodOwner(pod){
-        require(_podToWithdrawalAddress[pod].length == 0, "Withdrawal already requested");
-        require(withdrawAddress.length > 0, "Invalid withdraw address");
+    function withdrawBitcoinCompleteTxRequest(address pod, bytes memory preSignedWithdrawTransaction, string memory withdrawAddress) external whenNotPaused nonReentrant onlyPodOwner(pod){
+        require(bytes(_podToWithdrawalAddress[pod]).length == 0, "Withdrawal already requested");
+        require(bytes(withdrawAddress).length > 0, "Invalid withdraw address");
         // check if the pod is locked
         require(!IBitcoinPod(pod).isLocked(), "Pod is locked");
 
@@ -403,10 +403,10 @@ contract BitcoinPodManager is
      */
     function withdrawBitcoinAsTokens(address pod) external whenNotPaused nonReentrant onlyBitDSMServiceManager{
         // check if the pod has a withdrawal request
-        require(_podToWithdrawalAddress[pod].length != 0, "No withdrawal request");
+        require(bytes(_podToWithdrawalAddress[pod]).length != 0, "No withdrawal request");
         // check if 
         // get the withdrawal address
-        bytes memory withdrawAddress = _podToWithdrawalAddress[pod];
+        string memory withdrawAddress = _podToWithdrawalAddress[pod];
         // burn the amount
         _burnBitcoin(pod, IBitcoinPod(pod).getBitcoinBalance());
         // emit the event

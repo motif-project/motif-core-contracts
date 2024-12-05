@@ -29,15 +29,7 @@ contract BitcoinPodManagerStorage {
     mapping(address => IBitcoinPodManager.BitcoinDepositRequest) internal _podToBitcoinDepositRequest;
     
     /// @notice Mapping of pod address to the withdrawal address
-    mapping(address => bytes) internal _podToWithdrawalAddress;
-    
-        /**
-     * @notice Struct to store Bitcoin deposit request details
-     * @dev Tracks the status and details of pending Bitcoin deposit requests
-     * @param transactionId The transaction ID of the deposit
-     * @param amount The amount of Bitcoin deposited
-     * @param isPending Whether the deposit request is pending
-     */
+    mapping(address => string) internal _podToWithdrawalAddress;
   
     
     /// @dev Gap for future storage variables
