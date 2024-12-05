@@ -269,6 +269,19 @@
   },
   {
     "type": "function",
+    "name": "setBitcoinPodManager",
+    "inputs": [
+      {
+        "name": "bitcoinPodManager",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setRewardsInitiator",
     "inputs": [
       {
@@ -314,6 +327,24 @@
         "name": "_metadataURI",
         "type": "string",
         "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "verifyBTCAddress",
+    "inputs": [
+      {
+        "name": "btcAddress",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "script",
+        "type": "bytes",
+        "internalType": "bytes"
       }
     ],
     "outputs": [],
@@ -374,6 +405,25 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "BTCAddressVerified",
+    "inputs": [
+      {
+        "name": "operator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "btcAddress",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      }
+    ],
+    "anonymous": false
   },
   {
     "type": "event",

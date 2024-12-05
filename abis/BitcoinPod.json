@@ -3,26 +3,6 @@
     "type": "constructor",
     "inputs": [
       {
-        "name": "_owner",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "_operator",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "_operatorBtcPubKey",
-        "type": "bytes",
-        "internalType": "bytes"
-      },
-      {
-        "name": "_btcAddress",
-        "type": "bytes",
-        "internalType": "bytes"
-      },
-      {
         "name": "_manager",
         "type": "address",
         "internalType": "address"
@@ -138,6 +118,34 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "initialize",
+    "inputs": [
+      {
+        "name": "_owner",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_operator",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_operatorBtcPubKey",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "_btcAddress",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",

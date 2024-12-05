@@ -1,32 +1,6 @@
 [
   {
     "type": "function",
-    "name": "appRegistry",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IAppRegistry"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "bitDSMRegistry",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IBitDSMRegistry"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "confirmBitcoinDeposit",
     "inputs": [
       {
@@ -92,6 +66,45 @@
   },
   {
     "type": "function",
+    "name": "getAppRegistry",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getBitDSMRegistry",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getBitDSMServiceManager",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getBitcoinDepositRequest",
     "inputs": [
       {
@@ -139,8 +152,59 @@
     "outputs": [
       {
         "name": "",
-        "type": "bytes",
-        "internalType": "bytes"
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPodApp",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getTotalTVL",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getUserPod",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"
@@ -150,17 +214,17 @@
     "name": "initialize",
     "inputs": [
       {
-        "name": "_appRegistry",
+        "name": "appRegistry_",
         "type": "address",
         "internalType": "address"
       },
       {
-        "name": "_bitDSMRegistry",
+        "name": "bitDSMRegistry_",
         "type": "address",
         "internalType": "address"
       },
       {
-        "name": "bitDSMServiceManager",
+        "name": "bitDSMServiceManager_",
         "type": "address",
         "internalType": "address"
       }
@@ -196,6 +260,13 @@
   },
   {
     "type": "function",
+    "name": "pause",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "paused",
     "inputs": [],
     "outputs": [
@@ -209,75 +280,26 @@
   },
   {
     "type": "function",
-    "name": "podToApp",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
+    "name": "renounceOwnership",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
-    "name": "podToBitcoinDepositRequest",
+    "name": "setSignedBitcoinWithdrawTransactionPod",
     "inputs": [
       {
-        "name": "",
+        "name": "pod",
         "type": "address",
         "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "transactionId",
-        "type": "bytes32",
-        "internalType": "bytes32"
       },
       {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "isPending",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "podToWithdrawalAddress",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
+        "name": "signedBitcoinWithdrawTransaction",
         "type": "bytes",
         "internalType": "bytes"
       }
     ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "renounceOwnership",
-    "inputs": [],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -322,22 +344,10 @@
   },
   {
     "type": "function",
-    "name": "userToPod",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
+    "name": "unpause",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -391,8 +401,8 @@
       },
       {
         "name": "withdrawAddress",
-        "type": "bytes",
-        "internalType": "bytes"
+        "type": "string",
+        "internalType": "string"
       }
     ],
     "outputs": [],
@@ -409,8 +419,8 @@
       },
       {
         "name": "withdrawAddress",
-        "type": "bytes",
-        "internalType": "bytes"
+        "type": "string",
+        "internalType": "string"
       }
     ],
     "outputs": [],
@@ -516,9 +526,9 @@
       },
       {
         "name": "withdrawAddress",
-        "type": "bytes",
+        "type": "string",
         "indexed": false,
-        "internalType": "bytes"
+        "internalType": "string"
       }
     ],
     "anonymous": false
@@ -535,9 +545,9 @@
       },
       {
         "name": "withdrawAddress",
-        "type": "bytes",
+        "type": "string",
         "indexed": false,
-        "internalType": "bytes"
+        "internalType": "string"
       }
     ],
     "anonymous": false
@@ -640,6 +650,19 @@
         "type": "address",
         "indexed": true,
         "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TotalTVLUpdated",
+    "inputs": [
+      {
+        "name": "newTVL",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
