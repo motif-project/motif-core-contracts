@@ -7,15 +7,13 @@ import {console} from "forge-std/console.sol";
 contract UpgradeBitDSMServiceManager is Script {
     uint256 deployerPrivateKey;
     address deployer;
-    address constant _PROXY_ADMIN = 0x71e4eFEcF796bBBC562f639ADde036784F67a563;
-    address constant _BITCOIN_POD_MANAGER_PROXY = 0x3FAB0A58446da7a0703c0856A7c05abfa5a0F964;
-    address constant _APP_REGISTRY = 0xD2a6d4e2F8FaF4Ee980be7Ff43Fb9e47b496b475;
-    address constant _BITDSM_REGISTRY = 0x9619E0B51531ba2607d55422D66b14c570d5DE7a;
-    address constant _SERVICE_MANAGER_PROXY = 0x3E091B2318356b1AA1D5F0Bd846E956b48beB238; 
+    address constant _PROXY_ADMIN = 0xBEccF8e2FdDC4b82bfC28Fb37997aBAE53E54082;
+    address constant _BITCOIN_POD_MANAGER_PROXY = 0x3a8DF58c0B3D5A1d8f4D8046D8531A9433ee5255;
+    address constant _SERVICE_MANAGER_PROXY = 0x3a2F63a724b42DeA06B548C81C3C219FE2529624; 
     address constant _REWARDS_COORDINATOR = 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
     address constant _DELEGATION_MANAGER = 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
     address constant _AVS_DIRECTORY = 0x055733000064333CaDDbC92763c58BF0192fFeBf;
-    address constant _BITDSM_REGISTRY_PROXY = 0x9619E0B51531ba2607d55422D66b14c570d5DE7a;
+    address constant _BITDSM_REGISTRY_PROXY = 0x2b50637B799e38Fc55596829DB1126A57681E012;
     function upgradeBitDSMServiceManager() public {
         // Deploy new implementation
         BitDSMServiceManager serviceManagerImpl = new BitDSMServiceManager(
