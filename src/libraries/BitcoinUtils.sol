@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
+import "forge-std/console.sol";
 
 /// @title Bitcoin Utilities Library
 /// @notice Collection of utilities for Bitcoin operations
@@ -55,15 +56,15 @@ library BitcoinUtils {
     /// @dev Creates a Pay-to-Witness-Script-Hash (P2WSH) scriptPubKey from a given script
     /// @param script The script to convert
     /// @return The P2WSH scriptPubKey in format: OP_0 <32-byte-hash>
-    function getScriptPubKey(bytes calldata script) public pure returns (bytes memory) {
-        bytes32 witnessProgram = getWitnessProgram(script);
+    function getScriptPubKey(bytes calldata script) public pure returns (bytes32) {
+        return getWitnessProgram(script);
         
         // P2WSH scriptPubKey: OP_0 <32-byte-hash>
-        return abi.encodePacked(
-            WITNESS_VERSION_0,  // witness version (0x00)
-            PUSH_32_BYTES,     // push 32 bytes (0x20)
-            witnessProgram
-        );
+        // return abi.encodePacked(
+        //     WITNESS_VERSION_0,  // witness version (0x00)
+        //     PUSH_32_BYTES,     // push 32 bytes (0x20)
+        //     witnessProgram
+        // );
     }
     
     /// @notice Verifies if a script matches an address's witness program
@@ -84,19 +85,20 @@ library BitcoinUtils {
     /// @param toBits The desired output bit width (typically 5)
     /// @param pad Whether to pad any remaining bits in the final group
     /// @return A new byte array with the converted bit representation
-    function _convertBits(bytes calldata data, uint8 fromBits, uint8 toBits, bool pad) 
+    function _convertBits(bytes memory data, uint8 fromBits, uint8 toBits, bool pad) 
         internal pure returns (bytes memory) {
         uint256 acc = 0;  // Accumulator for bits
         uint256 bits = 0; // Number of bits in accumulator
-        bytes memory ret = new bytes(64); // Inefficient:: Max possible size buffer
+        uint256 maxOutputLength = (data.length * fromBits + toBits - 1) / toBits;
+        bytes memory ret = new bytes(maxOutputLength); // Inefficient:: Max possible size buffer
         // Should calculate exact size needed: (data.length * fromBits + toBits - 1) / toBits
         uint256 length = 0; // Current length of output
-        
+
         // Process each input byte
         for (uint256 i = 0; i < data.length; i++) {
             acc = (acc << fromBits) | uint8(data[i]);
             bits += fromBits;
-            
+
             // Extract complete groups of toBits
             while (bits >= toBits) {
                 bits -= toBits;
@@ -104,13 +106,13 @@ library BitcoinUtils {
                 length++;
             }
         }
-        
+
         // Handle remaining bits if padding is requested
         if (pad && bits > 0) {
             ret[length] = bytes1(uint8((acc << (toBits - bits)) & ((1 << toBits) - 1)));
             length++;
         }
-        
+
         // Create final result array trimmed to actual length
         bytes memory result = new bytes(length);
         for (uint256 i = 0; i < length; i++) {
@@ -126,23 +128,38 @@ library BitcoinUtils {
     /// @return A bytes array containing the checksum
     function _createChecksum(bytes memory hrp, bytes memory data) 
         internal pure returns (bytes memory) {
-        uint256[] memory values = new uint256[](hrp.length + data.length + 7);
+       // uint256[] memory values = new uint256[](hrp.length + data.length + 7);
+        uint256[] memory values = new uint256[](hrp.length * 2 + 1 + data.length + 6);
+
         uint256 i = 0;
-        
+        //console.log("values length: ", values.length);
         // Expand HRP
         for (; i < hrp.length; i++) {
             values[i] = uint8(hrp[i]) >> 5;
+            //console.log("HRP expanded value:", values[i]);
         }
         values[i++] = 0;
         for (uint256 j = 0; j < hrp.length; j++) {
             values[i++] = uint8(hrp[j]) & 31;
+            //console.log("HRP expanded value:", values[i - 1]);
         }
-        
+       // console.log("data lenght: ", data.length);
         // Add data
-        for (uint256 j = 0; j < data.length; j++) {
+        for (uint256 j = 0; j < data.length && i < values.length; j++) {
             values[i++] = uint8(data[j]);
+         //   console.log("i = ", i);
+        //////    console.log("j = ", j);
+            // log loop value
+            //console.log("Data value:", values[i - 1]);
         }
-        
+        // loop ove values and print them to console for debugging
+        for (uint256 k = 0; k < values.length; k++) {
+            console.log("Value:", values[k]);
+        }
+        // Add checksum template - ensure we don't exceed array bounds
+   //if (i + 6 > values.length) {
+    //        revert("Buffer overflow");
+    //    }
         // Add checksum template
         values[i++] = 0;
         values[i++] = 0;
@@ -151,23 +168,41 @@ library BitcoinUtils {
         values[i++] = 0;
         values[i++] = 0;
         
+        // Correct generator constants from BIP-0173
+        uint256[5] memory GEN = [
+            uint256(0x3b6a57b2),
+            uint256(0x26508e6d),
+            uint256(0x1ea119fa),
+            uint256(0x3d4233dd),
+            uint256(0x2a1462b3)
+        ];
         // Calculate checksum
         uint256 polymod = 1;
         for (i = 0; i < values.length; i++) {
             uint256 b = polymod >> 25;
             polymod = ((polymod & 0x1ffffff) << 5) ^ values[i];
+            //console.log("Polymod after XOR:", polymod);
             for (uint256 j = 0; j < 5; j++) {
                 if (((b >> j) & 1) == 1) {
-                    polymod ^= uint256(0x3b6a57b2) << (j * 5);
+                     polymod ^= GEN[j];
+                   // polymod ^= uint256(0x3b6a57b2) << (j * 5);
+                    //console.log("Polymod after conditional XOR:", polymod);
+                }
+                else {
+                    polymod ^= 0;
                 }
             }
         }
-        polymod ^= 1;
+        console.log("Final polymod:", polymod);
+       // polymod ^= 1;
+       // console.log("Final polymod:", polymod);
         
         // Convert checksum to 5-bit array
         bytes memory checksum = new bytes(6);
         for (i = 0; i < 6; i++) {
-            checksum[5 - i] = bytes1(uint8((polymod >> (5 * i)) & 31));
+            //checksum[5 - i] = bytes1(uint8((polymod >> (5 * i)) & 31));
+            checksum[i] = bytes1(uint8((polymod >> (5 * (5-i))) & 31));
+            //console.log("Checksum value:", uint8(checksum[5 - i]));
         }
         return checksum;
     }
@@ -178,26 +213,43 @@ library BitcoinUtils {
     /// @return The Bech32 encoded Bitcoin address as a string
     /// @custom:throws "Invalid scriptPubKey length" if scriptPubKey is too short
     /// @custom:throws "Invalid witness version" if first byte is not 0x00
-    function convertScriptPubKeyToBech32Address(bytes calldata scriptPubKey) public pure returns (string memory) {
+    function convertScriptPubKeyToBech32Address(bytes32 scriptPubKey) public pure returns (string memory) {
         require(scriptPubKey.length > 2, "Invalid scriptPubKey length");
-        require(scriptPubKey[0] == 0x00, "Invalid witness version");
+       // require(scriptPubKey[0] == 0x00, "Invalid witness version");
         
         // HRP for mainnet
         bytes memory hrp = "tb";
         
         // Convert scriptPubKey to 5-bit data
-        bytes memory converted = _convertBits(scriptPubKey, 8, 5, true);
-        
-        // Get checksum
-        bytes memory checksum = _createChecksum(hrp, converted);
-        
-        // Combine all parts
-        bytes memory combined = new bytes(converted.length + checksum.length);
+        bytes memory scriptPubKeyBytes = new bytes(32);
+        for (uint256 i = 0; i < scriptPubKeyBytes.length; i++) {
+            scriptPubKeyBytes[i] = bytes1(uint8(scriptPubKey[i]));
+        }
+        bytes memory converted = _convertBits(scriptPubKeyBytes, 8, 5, true);
         for (uint256 i = 0; i < converted.length; i++) {
-            combined[i] = converted[i];
+            console.logBytes1(converted[i]);
+        }
+        console.log("converted length:", converted.length);
+        bytes memory convertedWithPrefix = new bytes(converted.length + 1);  // 1 byte prefix + 32 bytes hash
+        convertedWithPrefix[0] = 0x00;  // Prepend 0x00
+        
+        // Copy witness program bytes
+        // assembly {
+        //     mstore(add(convertedWithPrefix, 33), converted)  // Copy 32 bytes starting at position 1
+        // }
+        for (uint256 i = 0; i < converted.length; i++) {
+            convertedWithPrefix[i + 1] = converted[i];
+        }
+        // Get checksum
+        bytes memory checksum = _createChecksum(hrp, convertedWithPrefix);
+        
+        // // Combine all parts
+        bytes memory combined = new bytes(convertedWithPrefix.length + checksum.length);
+        for (uint256 i = 0; i < convertedWithPrefix.length; i++) {
+            combined[i] = convertedWithPrefix[i];
         }
         for (uint256 i = 0; i < checksum.length; i++) {
-            combined[converted.length + i] = checksum[i];
+            combined[convertedWithPrefix.length + i] = checksum[i];
         }
         
         // Create final string
@@ -229,8 +281,8 @@ library BitcoinUtils {
         pubKey2 = new bytes(33);
 
         for(uint256 i = 0; i < 33; i++) {
-            pubKey1[i] = scriptBytes[i + 1];
-            pubKey2[i] = scriptBytes[i + 34];
+            pubKey1[i] = scriptBytes[i + 2]; // Start after OP_2 (0x52) and length byte (0x21)
+            pubKey2[i] = scriptBytes[i + 36]; // Start after first pubkey and second length byte (0x21)
         }
     }
 

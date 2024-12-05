@@ -11,6 +11,7 @@ import {ISignatureUtils} from "@eigenlayer/src/contracts/interfaces/ISignatureUt
 import {IAVSDirectory} from "@eigenlayer/src/contracts/interfaces/IAVSDirectory.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MockBitcoinPodManager} from "./mocks/MockBitcoinPodManager.sol";
+import {BitcoinUtils} from "../src/libraries/BitcoinUtils.sol";
 contract MockAVSDirectory is IAVSDirectory {
     function registerOperatorToAVS(address, ISignatureUtils.SignatureWithSaltAndExpiry memory) external pure {}
     function deregisterOperatorFromAVS(address) external pure {}
@@ -55,6 +56,7 @@ contract BitDSMServiceManagerTest is Test {
     bytes public bitcoinAddress;
     
     event BitcoinWithdrawalTransactionSigned(address indexed pod, address indexed operator, uint256 amount);
+    event BTCAddressVerified(address indexed operator, string indexed btcAddress);
     function _deployProxiedServiceManager() internal returns (BitDSMServiceManager) {
     // Deploy ProxyAdmin if not already deployed
     ProxyAdmin proxyAdmin = new ProxyAdmin();
@@ -281,6 +283,62 @@ contract BitDSMServiceManagerTest is Test {
         vm.prank(operator);
         vm.expectRevert("Invalid transaction");
         serviceManager.confirmWithdrawal(podAddress, invalidTx, signature);
+    }
+    
+    function testVerifyBTCAddress() public {
+        // Example P2WSH script with known public keys
+        // This is a mock script representing a 2-of-2 multisig witness script
+        bytes memory script = hex"522103cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b021024589c8c7dbd0a2f341a1349e392834b0ffa7dbdf273f68c3a7e08bec19923a4952ae";
+        
+        // The corresponding bech32 address for the above script (testnet)
+        string memory expectedBtcAddress = "tb1q4vuwn2fwr0dt6kdmgz2ldc9pd70pa9w8rdr5vh5x7jq2srzndqfsrswq4s";
+        
+        // Mock the operator's BTC public key in the registry
+        // First public key from the script above
+        bytes memory mockOperatorBtcPubKey = hex"03cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b0";
+        
+        // Mock the registry to return our test operator's BTC public key
+        vm.mockCall(
+            address(mockStakeRegistry),
+            abi.encodeWithSignature("getOperatorBtcPublicKey(address)", operator),
+            abi.encode(mockOperatorBtcPubKey)
+        );
+
+        // Call verifyBTCAddress as operator
+        vm.prank(operator);
+        //vm.expectEmit(true, true, false, true);
+        //emit BTCAddressVerified(operator, expectedBtcAddress);
+       // serviceManager.verifyBTCAddress(expectedBtcAddress, script);
+       //testing extractpublickeys
+       (bytes memory pubKey1, bytes memory pubKey2) = BitcoinUtils.extractPublicKeys(script);
+
+       // test getScriptPubKey
+       bytes32  scriptPubKey = BitcoinUtils.getScriptPubKey(script);
+      //assertEq(scriptPubKey, hex"0020ab38e9a92e1bdabd59bb4095f6e0a16f9e1e95c71b47465e86f480a80c536813", "Invalid scriptPubKey");
+       console.logBytes32(scriptPubKey);
+       // test convertScriptPubKeyToBech32Address
+       string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(scriptPubKey);
+       assertEq(bech32Address, expectedBtcAddress, "Invalid bech32 address");
+       assertEq(pubKey1, mockOperatorBtcPubKey, "Invalid public key 1");
+       require(pubKey2.length == 33, "Invalid public key 2 length");
+    }
+
+    function testFailVerifyBTCAddressInvalidOperator() public {
+        bytes memory script = hex"522102c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee521021c1db6e604a4909a6e70f1994e37df6dfdcb19c8ee4c9648f37087e5f36388b352ae";
+        string memory btcAddress = "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7";
+        
+        // Call with non-operator address should fail
+        vm.prank(address(0xbad));
+        serviceManager.verifyBTCAddress(btcAddress, script);
+    }
+
+    function testFailVerifyBTCAddressInvalidScript() public {
+        // Invalid script (wrong length)
+        bytes memory invalidScript = hex"1234";
+        string memory btcAddress = "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7";
+        
+        vm.prank(operator);
+        serviceManager.verifyBTCAddress(btcAddress, invalidScript);
     }
 }
 

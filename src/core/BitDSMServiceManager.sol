@@ -187,7 +187,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         // verify correct operator BTC key is used in script
         require(_areEqual(operatorKey, IBitDSMRegistry(stakeRegistry).getOperatorBtcPublicKey(msg.sender)), "Invalid operator BTC key");
         // get scriptPubKey
-        bytes memory scriptPubKey = BitcoinUtils.getScriptPubKey(script);
+        bytes32  scriptPubKey = BitcoinUtils.getScriptPubKey(script);
         // convert scriptPubKey to bech32address
         string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(scriptPubKey);
         // verify the address is correct
@@ -214,14 +214,14 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         BitcoinUtils.Output[] memory outputs = BitcoinUtils.extractVoutFromPSBT(psbtBytes);
         
         // Process each output
-        for(uint256 i = 0; i < outputs.length; i++) {
-            // convert the scriptPubKey to bech32 address
-            string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(outputs[i].scriptPubKey);
-            // return true if the address is correct and the amount is correct
-            if (_areEqual(bytes(bech32Address), bytes(withdrawAddress)) && outputs[i].value == withdrawAmount) {
-                return true;
-            }
-        }
+        // for(uint256 i = 0; i < outputs.length; i++) {
+        //     // convert the scriptPubKey to bech32 address
+        //     string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(outputs[i].scriptPubKey);
+        //     // return true if the address is correct and the amount is correct
+        //     if (_areEqual(bytes(bech32Address), bytes(withdrawAddress)) && outputs[i].value == withdrawAmount) {
+        //         return true;
+        //     }
+        // }
         return false;
     }
 
