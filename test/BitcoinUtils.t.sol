@@ -49,9 +49,13 @@ contract BitcoinUtilsTest is Test {
     }
 
     function testConvertScriptPubKeyToBech32Address() public {
+        
+        // creaate withness script
+        bytes memory script = hex"522103cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b02103809fa6d4203620e2532d27d482082de8ec866845124038c38bb02e2229dc6cdb52ae";
+        bytes32 scriptPubKey = BitcoinUtils.getWitnessProgram(script);
         // Test case 1: P2WSH address
-        bytes32 scriptPubKey = bytes32(hex"ab38e9a92e1bdabd59bb4095f6e0a16f9e1e95c71b47465e86f480a80c536813");
-        string memory expected = "tb1q4vuwn2fwr0dt6kdmgz2ldc9pd70pa9w8rdr5vh5x7jq2srzndqfsrswq4s";
+        //bytes32 scriptPubKey = bytes32(hex"ab38e9a92e1bdabd59bb4095f6e0a16f9e1e95c71b47465e86f480a80c536813");
+        string memory expected = "tb1q3tndt980zwsmg8veckdqp8z6es5vsdz95f2rpu63dcn3lea27k3q2lx63u";
         
         string memory result = BitcoinUtils.convertScriptPubKeyToBech32Address(scriptPubKey);
         console.log("Result:", result);

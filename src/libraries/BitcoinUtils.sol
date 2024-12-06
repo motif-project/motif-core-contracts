@@ -194,7 +194,7 @@ library BitcoinUtils {
             }
         }
         console.log("Final polymod:", polymod);
-       // polymod ^= 1;
+        polymod ^= 1;
        // console.log("Final polymod:", polymod);
         
         // Convert checksum to 5-bit array
