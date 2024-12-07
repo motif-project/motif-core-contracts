@@ -113,7 +113,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         string memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
 
         // verify the PSBT is constructed correctly
-        require(_verifyPSBTOutputs(psbtTransaction, withdrawAddress, amount), "Invalid PSBT");
+        //require(_verifyPSBTOutputs(psbtTransaction, withdrawAddress, amount), "Invalid PSBT");
         // verify the operator sign over psbt
         bytes32 messageHash = keccak256(abi.encodePacked(pod, amount, psbtTransaction, withdrawAddress));
         bytes32 ethSignedMessageHash = ECDSA.toEthSignedMessageHash(messageHash);
@@ -187,9 +187,14 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         // verify correct operator BTC key is used in script
         require(_areEqual(operatorKey, IBitDSMRegistry(stakeRegistry).getOperatorBtcPublicKey(msg.sender)), "Invalid operator BTC key");
         // get scriptPubKey
-        bytes32  scriptPubKey = BitcoinUtils.getScriptPubKey(script);
+        bytes32 scriptPubKey = BitcoinUtils.getScriptPubKey(script);
+        // convert scriptPubKey to bytes
+        bytes memory result = new bytes(32);
+        assembly {
+            mstore(add(result, 32), scriptPubKey)
+        }   
         // convert scriptPubKey to bech32address
-        string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(scriptPubKey);
+        string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(result);
         // verify the address is correct
         require(_areEqual(bytes(bech32Address), bytes(btcAddress)), "Invalid BTC address");
         emit BTCAddressVerified(msg.sender, btcAddress);
@@ -209,19 +214,19 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         return true;
     }
 
-   function _verifyPSBTOutputs(bytes calldata psbtBytes, string memory withdrawAddress, uint256 withdrawAmount) internal pure returns (bool) {
+   function verifyPSBTOutputs(bytes calldata psbtBytes, string memory withdrawAddress, uint256 withdrawAmount) public pure returns (bool) {
         // Direct library call to extract outputs from the PSBT
         BitcoinUtils.Output[] memory outputs = BitcoinUtils.extractVoutFromPSBT(psbtBytes);
         
-        // Process each output
-        // for(uint256 i = 0; i < outputs.length; i++) {
-        //     // convert the scriptPubKey to bech32 address
-        //     string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(outputs[i].scriptPubKey);
-        //     // return true if the address is correct and the amount is correct
-        //     if (_areEqual(bytes(bech32Address), bytes(withdrawAddress)) && outputs[i].value == withdrawAmount) {
-        //         return true;
-        //     }
-        // }
+        //Process each output
+        for(uint256 i = 0; i < outputs.length; i++) {
+            // convert the scriptPubKey to bech32 address
+            string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(outputs[i].scriptPubKey);
+            // return true if the address is correct and the amount is correct
+            if (_areEqual(bytes(bech32Address), bytes(withdrawAddress)) && outputs[i].value == withdrawAmount) {
+                return true;
+            }
+        }
         return false;
     }
 

@@ -308,19 +308,19 @@ contract BitDSMServiceManagerTest is Test {
         vm.prank(operator);
         //vm.expectEmit(true, true, false, true);
         //emit BTCAddressVerified(operator, expectedBtcAddress);
-       // serviceManager.verifyBTCAddress(expectedBtcAddress, script);
+       serviceManager.verifyBTCAddress(expectedBtcAddress, script);
        //testing extractpublickeys
-       (bytes memory pubKey1, bytes memory pubKey2) = BitcoinUtils.extractPublicKeys(script);
+       //(bytes memory pubKey1, bytes memory pubKey2) = BitcoinUtils.extractPublicKeys(script);
 
        // test getScriptPubKey
-       bytes32  scriptPubKey = BitcoinUtils.getScriptPubKey(script);
+       //bytes32  scriptPubKey = BitcoinUtils.getScriptPubKey(script);
       //assertEq(scriptPubKey, hex"0020ab38e9a92e1bdabd59bb4095f6e0a16f9e1e95c71b47465e86f480a80c536813", "Invalid scriptPubKey");
-       console.logBytes32(scriptPubKey);
+       //console.logBytes32(scriptPubKey);
        // test convertScriptPubKeyToBech32Address
-       string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(scriptPubKey);
-       assertEq(bech32Address, expectedBtcAddress, "Invalid bech32 address");
-       assertEq(pubKey1, mockOperatorBtcPubKey, "Invalid public key 1");
-       require(pubKey2.length == 33, "Invalid public key 2 length");
+       //string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(scriptPubKey);
+       //assertEq(bech32Address, expectedBtcAddress, "Invalid bech32 address");
+       //assertEq(pubKey1, mockOperatorBtcPubKey, "Invalid public key 1");
+       //require(pubKey2.length == 33, "Invalid public key 2 length");
     }
 
     function testFailVerifyBTCAddressInvalidOperator() public {
@@ -339,6 +339,12 @@ contract BitDSMServiceManagerTest is Test {
         
         vm.prank(operator);
         serviceManager.verifyBTCAddress(btcAddress, invalidScript);
+    }
+    function testVerifyPSBTOutputs() public {
+        bytes memory psbtBytes = hex"70736274ff01005202000000010ae75c05525a16550f06a871ae31b5ecbfc778c0f7fc33e7d15cb956cb2479370000000000f5ffffff017f25000000000000160014bfcca6233013df0aa07a900170f479172eb19076000000000001007d0200000001c70045a2d38337557c4fc9bf65c11dee5c9334328d80bfc040bdc9f57ba1491e0100000000ffffffff021027000000000000220020a816306ea7aa56b85c885244b4b42af2204c2c0b8716734bc7c9e327dc93b2b25e0201000000000016001479f554a3171903aae7a975d7b5de42bf45ee12500000000001012b1027000000000000220020a816306ea7aa56b85c885244b4b42af2204c2c0b8716734bc7c9e327dc93b2b2220203cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b047304402206e62db59302da26342fa718b51bf6f7f49c77413dc6ad0954c7f667fe3d48e2a02200b8d4c61ad840563dd08aeaa47d092d4c4733b195a2e20339699237c7475923881010547522103cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b02103d00e88ffd1282cc378398d624566e76a1c631858cadfc7dc6c06e517f22fa48d52ae220603cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b018aba9403b5400008001000080000000800000000000000000220603d00e88";
+        string memory withdrawAddress = "tb1qhlx2vgesz00s4gr6jqqhparezuhtryrkpnd7tm";    
+        uint256 withdrawAmount = 9599;
+        assert(serviceManager.verifyPSBTOutputs(psbtBytes, withdrawAddress, withdrawAmount));
     }
 }
 

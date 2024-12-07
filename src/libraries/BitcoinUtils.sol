@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import "forge-std/console.sol";
+//import "forge-std/console.sol";
 
 /// @title Bitcoin Utilities Library
 /// @notice Collection of utilities for Bitcoin operations
@@ -153,9 +153,9 @@ library BitcoinUtils {
             //console.log("Data value:", values[i - 1]);
         }
         // loop ove values and print them to console for debugging
-        for (uint256 k = 0; k < values.length; k++) {
-            console.log("Value:", values[k]);
-        }
+       // for (uint256 k = 0; k < values.length; k++) {
+         //   console.log("Value:", values[k]);
+        //}
         // Add checksum template - ensure we don't exceed array bounds
    //if (i + 6 > values.length) {
     //        revert("Buffer overflow");
@@ -193,7 +193,7 @@ library BitcoinUtils {
                 }
             }
         }
-        console.log("Final polymod:", polymod);
+       // console.log("Final polymod:", polymod);
         polymod ^= 1;
        // console.log("Final polymod:", polymod);
         
@@ -213,23 +213,18 @@ library BitcoinUtils {
     /// @return The Bech32 encoded Bitcoin address as a string
     /// @custom:throws "Invalid scriptPubKey length" if scriptPubKey is too short
     /// @custom:throws "Invalid witness version" if first byte is not 0x00
-    function convertScriptPubKeyToBech32Address(bytes32 scriptPubKey) public pure returns (string memory) {
+    function convertScriptPubKeyToBech32Address(bytes calldata scriptPubKey) public pure returns (string memory) {
         require(scriptPubKey.length > 2, "Invalid scriptPubKey length");
        // require(scriptPubKey[0] == 0x00, "Invalid witness version");
         
         // HRP for mainnet
         bytes memory hrp = "tb";
         
-        // Convert scriptPubKey to 5-bit data
-        bytes memory scriptPubKeyBytes = new bytes(32);
-        for (uint256 i = 0; i < scriptPubKeyBytes.length; i++) {
-            scriptPubKeyBytes[i] = bytes1(uint8(scriptPubKey[i]));
-        }
-        bytes memory converted = _convertBits(scriptPubKeyBytes, 8, 5, true);
-        for (uint256 i = 0; i < converted.length; i++) {
-            console.logBytes1(converted[i]);
-        }
-        console.log("converted length:", converted.length);
+        bytes memory converted = _convertBits(scriptPubKey, 8, 5, true);
+       // for (uint256 i = 0; i < converted.length; i++) {
+       //     console.logBytes1(converted[i]);
+       // }
+       // console.log("converted length:", converted.length);
         bytes memory convertedWithPrefix = new bytes(converted.length + 1);  // 1 byte prefix + 32 bytes hash
         convertedWithPrefix[0] = 0x00;  // Prepend 0x00
         
@@ -273,6 +268,9 @@ library BitcoinUtils {
     /// @return pubKey1 The first 33-byte compressed public key
     /// @return pubKey2 The second 33-byte compressed public key
     function extractPublicKeys(bytes calldata scriptBytes) public pure returns (bytes memory pubKey1, bytes memory pubKey2) {
+        require(scriptBytes[scriptBytes.length-1] == bytes1(0xae), "Script is not a multisig");
+        require(scriptBytes[scriptBytes.length-2] == bytes1(0x52), "m value for multisig is not 2");
+        require(scriptBytes[0] == bytes1(0x52), "n value for multisig is not 2");
         require(scriptBytes.length >= 66, "Script is too short to contain two public keys");
     // Add more specific validation
     //if (scriptBytes.length < 66) revert InvalidScriptLength(scriptBytes.length);
@@ -364,9 +362,25 @@ library BitcoinUtils {
             bytes memory script = _extractBytes(psbtBytes, pos, uint256(scriptSize));
             pos += uint256(scriptSize);
 
+            bytes memory witnessprogram;
+            if (script.length == 34) {
+            witnessprogram = new bytes(32);
+            for (uint256 j = 0; j < 32; j++) {
+                witnessprogram[j] = script[script.length - 32 + j];
+            }
+            }else if(script.length == 22) {
+                witnessprogram = new bytes(20);
+                for (uint256 j = 0; j < 20; j++) {
+                    witnessprogram[j] = script[script.length - 20 + j];
+                }
+            }else {
+                revert InvalidScriptLength(script.length);
+            }
+
+
             outputs[i] = Output({
                 value: value,
-                scriptPubKey: script
+                scriptPubKey: witnessprogram
             });
         }
 
