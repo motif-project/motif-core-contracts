@@ -11,7 +11,7 @@ import "../interfaces/IBitcoinPod.sol";
 import "../storage/BitcoinPodManagerStorage.sol";
 import "./BitcoinPod.sol";
 import "../interfaces/IBitDSMServiceManager.sol";
-
+import "forge-std/console.sol";
 /**
  * @title BitcoinPodManager
  * @notice Manages Bitcoin custody pods for Clients in the BitDSM protocol
@@ -103,6 +103,7 @@ contract BitcoinPodManager is
         _bitDSMRegistry = bitDSMRegistry_;
         _bitDSMServiceManager = bitDSMServiceManager_;
         _totalTVL = 0;
+        _totalPods = 0;
     }
     // Implement interface getters
     // @inheritdoc IBitcoinPodManager
@@ -145,6 +146,11 @@ contract BitcoinPodManager is
         return _podToWithdrawalAddress[pod];
     }
 
+    // @inheritdoc IBitcoinPodManager
+    function getTotalPods() external view override returns (uint256) {
+        return _totalPods;
+    }
+
     /**
      * @inheritdoc IBitcoinPodManager
      * @dev Creates a new Bitcoin pod with the specified operator and Bitcoin address
@@ -153,7 +159,7 @@ contract BitcoinPodManager is
      * @dev Creates new BitcoinPod contract and stores mapping
      * @dev Emits PodCreated event
      */
-    function createPod(address operator, bytes memory btcAddress)                   
+    function createPod(address operator, string memory btcAddress, bytes calldata scipt)                   
         external 
         whenNotPaused 
         nonReentrant
@@ -163,9 +169,22 @@ contract BitcoinPodManager is
         require(IBitDSMRegistry(_bitDSMRegistry).isOperatorBtcKeyRegistered(operator), "Invalid operator");
         
         bytes memory operatorBtcPubKey = IBitDSMRegistry(_bitDSMRegistry).getOperatorBtcPublicKey(operator);
+       // console.logBytes(operatorBtcPubKey);
+        // verify the btc address
+        // try catch block to handle the error
+        try IBitDSMServiceManager(_bitDSMServiceManager).verifyBTCAddress(btcAddress, scipt, operatorBtcPubKey) returns (bool isBtcAddress) {
+            console.log("isBtcAddress", isBtcAddress);
+        } catch (bytes memory reason) {
+            console.log("Error verifying BTC address");
+            console.logBytes(reason);
+        }
+       // console.log("isBtcAddress", isBtcAddress);
+       // emit BTCAddressVerified(operator, btcAddress);
         // create the pod
         BitcoinPod newPod = new BitcoinPod(address(this));
         newPod.initialize(msg.sender, operator, operatorBtcPubKey, btcAddress);
+        // increment the total pods
+        _totalPods++;
         // set the user to pod mapping
         _setUserPod(msg.sender, address(newPod));
         

@@ -74,6 +74,12 @@ interface IBitcoinPodManager {
      * @return The address of the BitDSM Registry
      */
     function getBitDSMRegistry() external view returns (address);
+
+    /**
+     * @notice Gets the total number of pods created
+     * @return uint256 The total number of pods created
+     */
+    function getTotalPods() external view returns (uint256);
     /**
      * @notice Event emitted when a new pod is created
      * @param user The address of the user creating the pod
@@ -143,7 +149,12 @@ interface IBitcoinPodManager {
      * @param preSignedBitcoinTx The pre-signed Bitcoin transaction sent from the client
      */
     event BitcoinWithdrawalCompleteTxRequest(address indexed pod, address indexed operator, bytes preSignedBitcoinTx);
-
+      /**
+     * @notice Emitted when a BTC address is verified for a given scriptPubKey
+     * @param operator Address of the operator verifying the address
+     * @param btcAddress The verified BTC address
+     */
+    event BTCAddressVerified(address indexed operator, string btcAddress);
     /**
      * @notice Creates a new pod
      * @param operator The address of the operator creating the pod
@@ -153,7 +164,7 @@ interface IBitcoinPodManager {
      * - User doesn't already have a pod
      * - Operator is registered in BitDSM Registry
      */
-    function createPod(address operator, bytes memory btcAddress) external returns (address);
+    function createPod(address operator, string memory btcAddress, bytes calldata script) external returns (address);
 
     /**
      * @notice Delegates a pod to an app

@@ -13,6 +13,7 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
     mapping(address => address) public userToPod;
     address public bitDSMServiceManager;
     uint256 public totalTVL;
+    uint256 public totalPods;
 
     constructor(address _bitDSMServiceManager) {
         bitDSMServiceManager = _bitDSMServiceManager;
@@ -27,12 +28,16 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
     function getBitcoinWithdrawalAddress(address pod) external view returns (string memory) {
         return podToWithdrawalAddress[pod];
     }
-
-    function createPod(address operator, bytes memory /*_btcAddress*/) external returns (address) {
+    function getTotalPods() external view returns (uint256) {
+        return totalPods;
+    }
+    
+    function createPod(address operator, string memory /*_btcAddress*/, bytes calldata /*_script*/) external returns (address) {
         require(userToPod[msg.sender] == address(0), "User already has a pod");
         
         address pod = address(new MockBitcoinPod(operator, address(this)));
         userToPod[msg.sender] = pod;
+        totalPods++;
         return pod;
     }
 

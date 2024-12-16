@@ -12,6 +12,7 @@ import {IStrategy} from "@eigenlayer/src/contracts/interfaces/IStrategy.sol";
 import {Quorum, StrategyParams} from "@eigenlayer-middleware/src/interfaces/IECDSAStakeRegistryEventsAndErrors.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "../src/libraries/BitcoinUtils.sol";
 
 contract MockServiceManager {
     event BitcoinWithdrawalTransactionSigned(address indexed pod, address indexed operator, uint256 amount);
@@ -46,6 +47,29 @@ contract MockServiceManager {
     function confirmWithdrawal(address pod) external {
         podManager.withdrawBitcoinAsTokens(pod);
     }
+    function verifyBTCAddress(string calldata btcAddress, bytes calldata script, bytes calldata operatorBtcPubKey) external pure returns (bool) {
+         // extract publickeys from the script
+        (bytes memory operatorKey, bytes memory userKey) = BitcoinUtils.extractPublicKeys(script);
+        // check if userKey is 33 bytes
+        require(userKey.length == 33, "Invalid user key length. It should be 33 bytes");
+        // verify correct operator BTC key is used in script
+        require(_areEqual(operatorKey, operatorBtcPubKey), "Invalid operator BTC key");
+        // get scriptPubKey
+        bytes32 scriptPubKey = BitcoinUtils.getScriptPubKey(script);
+        // convert scriptPubKey to bytes
+        bytes memory result = new bytes(32);
+        assembly {
+            mstore(add(result, 32), scriptPubKey)
+        }   
+        // convert scriptPubKey to bech32address
+        string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(result);
+        // verify the address is correct
+        return _areEqual(bytes(bech32Address), bytes(btcAddress));
+    }
+    function _areEqual(bytes memory a, bytes memory b) internal pure returns (bool) {
+        return keccak256(a) == keccak256(b);
+    }
+
 }
 
 contract MockDelegationManager {
@@ -105,9 +129,11 @@ contract BitcoinPodManagerTest is Test {
     address public operator;
     address public user;
     bytes public operatorBtcPubKey;
-    bytes public userBtcAddress;
+    string public userBtcAddress;
+    uint256 public totalPods;
+    bytes public lockScript;
 
-    function deployProxiedServiceManager() internal returns (MockServiceManager) {
+    function _deployProxiedServiceManager() internal returns (MockServiceManager) {
     // Deploy ProxyAdmin if not already deployed
     ProxyAdmin proxyAdmin = new ProxyAdmin();
     
@@ -132,7 +158,7 @@ contract BitcoinPodManagerTest is Test {
         owner = address(this);
         appRegistry.initialize(owner);
         podManager = new BitcoinPodManager();
-        serviceManager = deployProxiedServiceManager();
+        serviceManager = _deployProxiedServiceManager();
         podManager.initialize(address(appRegistry), address(bitDSMRegistry), address(serviceManager));
       //  serviceManager = new MockServiceManager(address(podManager));
        
@@ -147,8 +173,10 @@ contract BitcoinPodManagerTest is Test {
         bitDSMRegistry.initialize(address(serviceManager), 100, quorum); 
         operator = address(0x1);
         user = address(0x2);
-        operatorBtcPubKey = hex"02a1633cafcc01ebfb6d78e39f687a1f0995c62fc95f51ead10a02ee0be551b5dc";
-        userBtcAddress = hex"76a914ca29dfa9e97fa4f0623742e4f7b90f81bfe5671b88ac";
+        operatorBtcPubKey = hex"03cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b0";
+        userBtcAddress = "tb1qccmqzwmm95pkyg9zl09mqm6kv95tulydtrr6rswezhnfdtt5hg9qwd09jn";
+        lockScript = hex"522103cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b02103fa33caff610ac48ad20c4bd9fa8d7c5b9a5c56b6d6315343f16cb93e59fafd0252ae";
+
     }
 
     function testPodCreation() public {
@@ -159,7 +187,7 @@ contract BitcoinPodManagerTest is Test {
 
         // Now, create a pod as the user
         vm.prank(user);
-        podManager.createPod(operator, userBtcAddress);
+        podManager.createPod(operator, userBtcAddress, lockScript);
 
         address podAddress = podManager.getUserPod(user);
         assertTrue(podAddress != address(0), "Pod should be created");
@@ -167,14 +195,14 @@ contract BitcoinPodManagerTest is Test {
         BitcoinPod pod = BitcoinPod(podAddress);
         assertEq(pod.owner(), user, "Pod owner should be the user");
         assertEq(pod.getOperator(), operator, "Pod operator should be set correctly");
-        assertEq(pod.getBitcoinAddress(), userBtcAddress, "Bitcoin address should be set correctly");
+        assertEq(bytes(pod.getBitcoinAddress()), bytes(userBtcAddress) , "Bitcoin address should be set correctly");
         assertEq(pod.getOperatorBtcPubKey(), operatorBtcPubKey, "Operator BTC public key should be set correctly");
     }
 
     function testCannotCreatePodWithUnregisteredOperator() public {
         vm.prank(user);
         vm.expectRevert("Invalid operator");
-        podManager.createPod(operator, userBtcAddress);
+        podManager.createPod(operator, userBtcAddress, lockScript);
     }
 
     function testCannotCreateMultiplePods() public {
@@ -185,12 +213,12 @@ contract BitcoinPodManagerTest is Test {
 
         // Create first pod
         vm.prank(user);
-        podManager.createPod(operator, userBtcAddress);
+        podManager.createPod(operator, userBtcAddress, lockScript);
 
         // Try to create second pod
         vm.prank(user);
         vm.expectRevert("User already has a pod");
-        podManager.createPod(operator, userBtcAddress);
+        podManager.createPod(operator, userBtcAddress, lockScript);
     }
 
     function testUserCannotMintBurnOrDeposit() public {
@@ -199,7 +227,7 @@ contract BitcoinPodManagerTest is Test {
         vm.prank(operator);
         bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
         vm.prank(user);
-        podManager.createPod(operator, userBtcAddress);
+        podManager.createPod(operator, userBtcAddress, lockScript);
         
         address podAddress = podManager.getUserPod(user);
         BitcoinPod pod = BitcoinPod(podAddress);
@@ -225,7 +253,7 @@ contract BitcoinPodManagerTest is Test {
         vm.prank(operator);
         bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator,operatorBtcPubKey);
         vm.prank(user);
-        podManager.createPod(operator, userBtcAddress);
+        podManager.createPod(operator, userBtcAddress, lockScript);
         
         address podAddress = podManager.getUserPod(user);
         BitcoinPod pod = BitcoinPod(podAddress);
@@ -253,7 +281,7 @@ contract BitcoinPodManagerTest is Test {
 
         // Create pod as user
         vm.prank(user);
-        podManager.createPod(operator, userBtcAddress);
+        podManager.createPod(operator, userBtcAddress, lockScript);
 
         // Get the pod address
         address podAddress = podManager.getUserPod(user);
@@ -269,7 +297,7 @@ contract BitcoinPodManagerTest is Test {
         bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
         
         vm.prank(user);
-        address podAddress = podManager.createPod(operator, userBtcAddress);
+        address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
         
         bytes32 txId = bytes32("test_tx_id");
         uint256 depositAmount = 1 ;
@@ -306,7 +334,7 @@ contract BitcoinPodManagerTest is Test {
         bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
         
         vm.prank(user);
-        address podAddress = podManager.createPod(operator, userBtcAddress);
+        address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
 
         // First deposit request
         vm.prank(user);
@@ -325,7 +353,7 @@ contract BitcoinPodManagerTest is Test {
         bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
         
         vm.prank(user);
-        address podAddress = podManager.createPod(operator, userBtcAddress);
+        address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
         // create deposit request 
         vm.prank(user);
         podManager.verifyBitcoinDepositRequest(podAddress, bytes32("deposit_tx"), 2 );
@@ -364,7 +392,7 @@ contract BitcoinPodManagerTest is Test {
         bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
         
         vm.prank(user);
-        address podAddress = podManager.createPod(operator, userBtcAddress);
+        address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
 
         // create deposit request 
         vm.prank(user);
@@ -406,7 +434,7 @@ contract BitcoinPodManagerTest is Test {
         bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
         
         vm.prank(user);
-        address podAddress = podManager.createPod(operator, userBtcAddress);
+        address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
 
         // Register and delegate to app
         address app = address(0x123);
@@ -433,7 +461,7 @@ contract BitcoinPodManagerTest is Test {
         bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
         
         vm.prank(user);
-        address podAddress = podManager.createPod(operator, userBtcAddress);
+        address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
 
         // Register and delegate to app
         address app = address(0x123);
@@ -467,13 +495,13 @@ contract BitcoinPodManagerTest is Test {
         
         vm.prank(user);
         vm.expectRevert("Pausable: paused");
-        podManager.createPod(operator, userBtcAddress);
+        podManager.createPod(operator, userBtcAddress, lockScript);
 
         // Unpause and verify operations work
         podManager.unpause();
         
         vm.prank(user);
-        address podAddress = podManager.createPod(operator, userBtcAddress);
+        address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
         assertNotEq(podAddress, address(0));
     }
 
@@ -484,7 +512,7 @@ contract BitcoinPodManagerTest is Test {
         bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
         
         vm.prank(user);
-        address podAddress = podManager.createPod(operator, userBtcAddress);
+        address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
         // create deposit request 
         vm.prank(user);
         podManager.verifyBitcoinDepositRequest(podAddress, bytes32("deposit_tx"), 2 );

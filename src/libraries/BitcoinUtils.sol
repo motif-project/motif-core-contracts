@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-//import "forge-std/console.sol";
-
 /// @title Bitcoin Utilities Library
 /// @notice Collection of utilities for Bitcoin operations
 /// @dev Version 1.0.0
@@ -28,15 +26,16 @@ library BitcoinUtils {
     uint256 private constant MIN_SCRIPT_LENGTH = 1;
     bytes1 private constant WITNESS_VERSION_0 = 0x00;
     bytes1 private constant PUSH_32_BYTES = 0x20;
+    // Bech32 charset for encoding
     bytes constant CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
    
   
     // Events
-    event ScriptProcessed(bytes32 indexed witnessProgram);
+    event ScriptProcessed(bytes program);
 
     /// @notice Calculates witness program from script
     /// @param script The input script
-    /// @return witnessProgram The calculated witness program
+    /// @return witnessProgram The witness program
     function getWitnessProgram(bytes calldata script) 
         public
         pure
@@ -55,16 +54,9 @@ library BitcoinUtils {
     /// @notice Converts a script to a P2WSH scriptPubKey format
     /// @dev Creates a Pay-to-Witness-Script-Hash (P2WSH) scriptPubKey from a given script
     /// @param script The script to convert
-    /// @return The P2WSH scriptPubKey in format: OP_0 <32-byte-hash>
+    /// @return The P2WSH witnessProgram as scriptPubKey
     function getScriptPubKey(bytes calldata script) public pure returns (bytes32) {
         return getWitnessProgram(script);
-        
-        // P2WSH scriptPubKey: OP_0 <32-byte-hash>
-        // return abi.encodePacked(
-        //     WITNESS_VERSION_0,  // witness version (0x00)
-        //     PUSH_32_BYTES,     // push 32 bytes (0x20)
-        //     witnessProgram
-        // );
     }
     
     /// @notice Verifies if a script matches an address's witness program
@@ -87,11 +79,13 @@ library BitcoinUtils {
     /// @return A new byte array with the converted bit representation
     function _convertBits(bytes memory data, uint8 fromBits, uint8 toBits, bool pad) 
         internal pure returns (bytes memory) {
+        
+        require(fromBits > 0 && toBits > 0, "Invalid bit size");
+        require(fromBits <= 8 && toBits <= 8, "Bit size too large");
         uint256 acc = 0;  // Accumulator for bits
         uint256 bits = 0; // Number of bits in accumulator
         uint256 maxOutputLength = (data.length * fromBits + toBits - 1) / toBits;
-        bytes memory ret = new bytes(maxOutputLength); // Inefficient:: Max possible size buffer
-        // Should calculate exact size needed: (data.length * fromBits + toBits - 1) / toBits
+        bytes memory ret = new bytes(maxOutputLength); // exact size needed: (data.length * fromBits + toBits - 1) / toBits
         uint256 length = 0; // Current length of output
 
         // Process each input byte
@@ -128,38 +122,23 @@ library BitcoinUtils {
     /// @return A bytes array containing the checksum
     function _createChecksum(bytes memory hrp, bytes memory data) 
         internal pure returns (bytes memory) {
-       // uint256[] memory values = new uint256[](hrp.length + data.length + 7);
         uint256[] memory values = new uint256[](hrp.length * 2 + 1 + data.length + 6);
 
         uint256 i = 0;
-        //console.log("values length: ", values.length);
+        
         // Expand HRP
         for (; i < hrp.length; i++) {
             values[i] = uint8(hrp[i]) >> 5;
-            //console.log("HRP expanded value:", values[i]);
         }
         values[i++] = 0;
         for (uint256 j = 0; j < hrp.length; j++) {
             values[i++] = uint8(hrp[j]) & 31;
-            //console.log("HRP expanded value:", values[i - 1]);
         }
-       // console.log("data lenght: ", data.length);
         // Add data
         for (uint256 j = 0; j < data.length && i < values.length; j++) {
             values[i++] = uint8(data[j]);
-         //   console.log("i = ", i);
-        //////    console.log("j = ", j);
-            // log loop value
-            //console.log("Data value:", values[i - 1]);
         }
-        // loop ove values and print them to console for debugging
-       // for (uint256 k = 0; k < values.length; k++) {
-         //   console.log("Value:", values[k]);
-        //}
-        // Add checksum template - ensure we don't exceed array bounds
-   //if (i + 6 > values.length) {
-    //        revert("Buffer overflow");
-    //    }
+        
         // Add checksum template
         values[i++] = 0;
         values[i++] = 0;
@@ -185,24 +164,18 @@ library BitcoinUtils {
             for (uint256 j = 0; j < 5; j++) {
                 if (((b >> j) & 1) == 1) {
                      polymod ^= GEN[j];
-                   // polymod ^= uint256(0x3b6a57b2) << (j * 5);
-                    //console.log("Polymod after conditional XOR:", polymod);
                 }
                 else {
                     polymod ^= 0;
                 }
             }
         }
-       // console.log("Final polymod:", polymod);
         polymod ^= 1;
-       // console.log("Final polymod:", polymod);
         
         // Convert checksum to 5-bit array
         bytes memory checksum = new bytes(6);
         for (i = 0; i < 6; i++) {
-            //checksum[5 - i] = bytes1(uint8((polymod >> (5 * i)) & 31));
             checksum[i] = bytes1(uint8((polymod >> (5 * (5-i))) & 31));
-            //console.log("Checksum value:", uint8(checksum[5 - i]));
         }
         return checksum;
     }
@@ -221,17 +194,11 @@ library BitcoinUtils {
         bytes memory hrp = "tb";
         
         bytes memory converted = _convertBits(scriptPubKey, 8, 5, true);
-       // for (uint256 i = 0; i < converted.length; i++) {
-       //     console.logBytes1(converted[i]);
-       // }
-       // console.log("converted length:", converted.length);
+       
         bytes memory convertedWithPrefix = new bytes(converted.length + 1);  // 1 byte prefix + 32 bytes hash
         convertedWithPrefix[0] = 0x00;  // Prepend 0x00
         
-        // Copy witness program bytes
-        // assembly {
-        //     mstore(add(convertedWithPrefix, 33), converted)  // Copy 32 bytes starting at position 1
-        // }
+        
         for (uint256 i = 0; i < converted.length; i++) {
             convertedWithPrefix[i + 1] = converted[i];
         }
@@ -272,16 +239,30 @@ library BitcoinUtils {
         require(scriptBytes[scriptBytes.length-2] == bytes1(0x52), "m value for multisig is not 2");
         require(scriptBytes[0] == bytes1(0x52), "n value for multisig is not 2");
         require(scriptBytes.length >= 66, "Script is too short to contain two public keys");
-    // Add more specific validation
-    //if (scriptBytes.length < 66) revert InvalidScriptLength(scriptBytes.length);
-    //if (scriptBytes[0] != 0x21) revert InvalidPublicKeyFormat(); // Check for compressed pubkey marker
         pubKey1 = new bytes(33);
         pubKey2 = new bytes(33);
 
-        for(uint256 i = 0; i < 33; i++) {
-            pubKey1[i] = scriptBytes[i + 2]; // Start after OP_2 (0x52) and length byte (0x21)
-            pubKey2[i] = scriptBytes[i + 36]; // Start after first pubkey and second length byte (0x21)
-        }
+       // for(uint256 i = 0; i < 33; i++) {
+         //   pubKey1[i] = scriptBytes[i + 2]; // Start after OP_2 (0x52) and length byte (0x21)
+           // pubKey2[i] = scriptBytes[i + 36]; // Start after first pubkey and second length byte (0x21)
+       // }
+       assembly {
+        // Copy first public key
+        let pubKey1Ptr := add(pubKey1, 32)  // Skip length prefix
+        calldatacopy(
+            pubKey1Ptr,                      // destination
+            add(scriptBytes.offset, 2),      // source (skip OP_2)
+            33                               // length
+        )
+
+        // Copy second public key
+        let pubKey2Ptr := add(pubKey2, 32)  // Skip length prefix
+        calldatacopy(
+            pubKey2Ptr,                      // destination
+            add(scriptBytes.offset, 36),     // source (skip first key)
+            33                               // length
+        )
+    }
     }
 
     /// @notice Extracts outputs from a PSBT
@@ -383,7 +364,7 @@ library BitcoinUtils {
                 scriptPubKey: witnessprogram
             });
         }
-
+      //  emit ScriptProcessed(psbtBytes);
         return outputs;
     }
     /// @notice Reads a compact size integer from a byte array

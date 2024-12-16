@@ -8,7 +8,7 @@ contract MockBitcoinPod is IBitcoinPod {
     bytes public signedWithdrawTx;
     address public operator;
     bytes public operatorBtcPubKey;
-    bytes public bitcoinAddress;
+    string public bitcoinAddress;
     uint256 public bitcoinBalance;
     address public immutable podManager;
     bytes public signedBitcoinWithdrawTransaction;
@@ -19,7 +19,7 @@ contract MockBitcoinPod is IBitcoinPod {
         locked = false;
     }
 
-    function getBitcoinAddress() external view returns (bytes memory) {
+    function getBitcoinAddress() external view returns (string memory) {
         return bitcoinAddress;
     }
 

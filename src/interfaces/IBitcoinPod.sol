@@ -16,7 +16,7 @@ interface IBitcoinPod {
      * @dev This is the address where Bitcoin deposits are received on the Bitcoin Chain
      * @return bytes The Bitcoin address as a byte array
      */
-    function getBitcoinAddress() external view returns (bytes memory);
+    function getBitcoinAddress() external view returns (string memory);
     /**
      * @notice Returns the Bitcoin public key of the operator associated with this pod
      * @dev This operator key is used to generate the multisig Bitcoin address

@@ -53,7 +53,7 @@ contract BitDSMServiceManagerTest is Test {
     address public operator2;
     uint256 private _operatorPrivateKey;
     bytes public operatorBtcPubKey;
-    bytes public bitcoinAddress;
+    string public bitcoinAddress;
     
     event BitcoinWithdrawalTransactionSigned(address indexed pod, address indexed operator, uint256 amount);
     event BTCAddressVerified(address indexed operator, string indexed btcAddress);
@@ -93,7 +93,7 @@ contract BitDSMServiceManagerTest is Test {
 
         // Mock Bitcoin-related data
         operatorBtcPubKey = hex"02abc123"; // Example public key
-        bitcoinAddress = hex"1234567890"; // Example Bitcoin address
+        bitcoinAddress = "tb1qhlx2vgesz00s4gr6jqqhparezuhtryrkpnd7tm"; // Example Bitcoin address
 
         mockAVSDirectory = new MockAVSDirectory();
         mockStakeRegistry = new MockECDSAStakeRegistry();
@@ -109,7 +109,7 @@ contract BitDSMServiceManagerTest is Test {
 
         // Create pod
         vm.prank(owner);
-        podAddress = podManager.createPod(operator, bitcoinAddress);
+        podAddress = podManager.createPod(operator, bitcoinAddress, operatorBtcPubKey);
     }
 
     function testConfirmDeposit() public {
@@ -160,8 +160,8 @@ contract BitDSMServiceManagerTest is Test {
 
     function testWithdrawBitcoinPSBT() public {
         uint256 amount = 1;
-        string memory withdrawAddress = hex"0200000001"; // Example withdraw address
-        bytes memory psbtTx = hex"0200000003"; // Example psbt transaction
+        string memory withdrawAddress = "tb1qhlx2vgesz00s4gr6jqqhparezuhtryrkpnd7tm"; // Example withdraw address
+        bytes memory psbtTx = hex"70736274ff01005202000000010ae75c05525a16550f06a871ae31b5ecbfc778c0f7fc33e7d15cb956cb2479370000000000f5ffffff017f25000000000000160014bfcca6233013df0aa07a900170f479172eb19076000000000001007d0200000001c70045a2d38337557c4fc9bf65c11dee5c9334328d80bfc040bdc9f57ba1491e0100000000ffffffff021027000000000000220020a816306ea7aa56b85c885244b4b42af2204c2c0b8716734bc7c9e327dc93b2b25e0201000000000016001479f554a3171903aae7a975d7b5de42bf45ee12500000000001012b1027000000000000220020a816306ea7aa56b85c885244b4b42af2204c2c0b8716734bc7c9e327dc93b2b2220203cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b047304402206e62db59302da26342fa718b51bf6f7f49c77413dc6ad0954c7f667fe3d48e2a02200b8d4c61ad840563dd08aeaa47d092d4c4733b195a2e20339699237c7475923881010547522103cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b02103d00e88ffd1282cc378398d624566e76a1c631858cadfc7dc6c06e517f22fa48d52ae220603cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b018aba9403b5400008001000080000000800000000000000000220603d00e88"; // Example psbt transaction
         
         // client send the psbt to the BitcoinPodManager to create a withdrawal request
         vm.prank(owner);
@@ -288,29 +288,41 @@ contract BitDSMServiceManagerTest is Test {
     function testVerifyBTCAddress() public {
         // Example P2WSH script with known public keys
         // This is a mock script representing a 2-of-2 multisig witness script
-        bytes memory script = hex"522103cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b021024589c8c7dbd0a2f341a1349e392834b0ffa7dbdf273f68c3a7e08bec19923a4952ae";
+        bytes memory script = hex"522103cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b02103fa33caff610ac48ad20c4bd9fa8d7c5b9a5c56b6d6315343f16cb93e59fafd0252ae";
         
         // The corresponding bech32 address for the above script (testnet)
-        string memory expectedBtcAddress = "tb1q4vuwn2fwr0dt6kdmgz2ldc9pd70pa9w8rdr5vh5x7jq2srzndqfsrswq4s";
+        string memory expectedBtcAddress = "tb1qccmqzwmm95pkyg9zl09mqm6kv95tulydtrr6rswezhnfdtt5hg9qwd09jn";
         
         // Mock the operator's BTC public key in the registry
         // First public key from the script above
+        
         bytes memory mockOperatorBtcPubKey = hex"03cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b0";
         
         // Mock the registry to return our test operator's BTC public key
-        vm.mockCall(
-            address(mockStakeRegistry),
-            abi.encodeWithSignature("getOperatorBtcPublicKey(address)", operator),
-            abi.encode(mockOperatorBtcPubKey)
-        );
+        // vm.mockCall(
+        //     address(mockStakeRegistry),
+        //     abi.encodeWithSignature("getOperatorBtcPublicKey(address)", operator),
+        //     abi.encode(mockOperatorBtcPubKey)
+        // );
+
+        (bytes memory pubKey1, bytes memory pubKey2) = BitcoinUtils.extractPublicKeys(script);
+        console.log("pubKey1 length", pubKey1.length);
+        console.log("mockOperatorBtcPubKey length", mockOperatorBtcPubKey.length);
+        assertEq(pubKey1.length, mockOperatorBtcPubKey.length, "Invalid public key Lenght");
+        bool hashkey = keccak256(pubKey1) == keccak256(mockOperatorBtcPubKey);
+        console.log("hashkey", hashkey);
+        assertEq(hashkey, true, "Invalid public key Hash");
+        console.logBytes(pubKey1);
+        console.logBytes(pubKey2);
 
         // Call verifyBTCAddress as operator
         vm.prank(operator);
         //vm.expectEmit(true, true, false, true);
         //emit BTCAddressVerified(operator, expectedBtcAddress);
-       serviceManager.verifyBTCAddress(expectedBtcAddress, script);
+       bool isBtcAddress = serviceManager.verifyBTCAddress(expectedBtcAddress, script, mockOperatorBtcPubKey);
+       assertEq(isBtcAddress, true, "Invalid BTC address");
        //testing extractpublickeys
-       //(bytes memory pubKey1, bytes memory pubKey2) = BitcoinUtils.extractPublicKeys(script);
+       
 
        // test getScriptPubKey
        //bytes32  scriptPubKey = BitcoinUtils.getScriptPubKey(script);
@@ -329,7 +341,7 @@ contract BitDSMServiceManagerTest is Test {
         
         // Call with non-operator address should fail
         vm.prank(address(0xbad));
-        serviceManager.verifyBTCAddress(btcAddress, script);
+        serviceManager.verifyBTCAddress(btcAddress, script, operatorBtcPubKey);
     }
 
     function testFailVerifyBTCAddressInvalidScript() public {
@@ -338,9 +350,9 @@ contract BitDSMServiceManagerTest is Test {
         string memory btcAddress = "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7";
         
         vm.prank(operator);
-        serviceManager.verifyBTCAddress(btcAddress, invalidScript);
+        serviceManager.verifyBTCAddress(btcAddress, invalidScript, operatorBtcPubKey);
     }
-    function testVerifyPSBTOutputs() public {
+    function testVerifyPSBTOutputs() public view {
         bytes memory psbtBytes = hex"70736274ff01005202000000010ae75c05525a16550f06a871ae31b5ecbfc778c0f7fc33e7d15cb956cb2479370000000000f5ffffff017f25000000000000160014bfcca6233013df0aa07a900170f479172eb19076000000000001007d0200000001c70045a2d38337557c4fc9bf65c11dee5c9334328d80bfc040bdc9f57ba1491e0100000000ffffffff021027000000000000220020a816306ea7aa56b85c885244b4b42af2204c2c0b8716734bc7c9e327dc93b2b25e0201000000000016001479f554a3171903aae7a975d7b5de42bf45ee12500000000001012b1027000000000000220020a816306ea7aa56b85c885244b4b42af2204c2c0b8716734bc7c9e327dc93b2b2220203cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b047304402206e62db59302da26342fa718b51bf6f7f49c77413dc6ad0954c7f667fe3d48e2a02200b8d4c61ad840563dd08aeaa47d092d4c4733b195a2e20339699237c7475923881010547522103cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b02103d00e88ffd1282cc378398d624566e76a1c631858cadfc7dc6c06e517f22fa48d52ae220603cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b018aba9403b5400008001000080000000800000000000000000220603d00e88";
         string memory withdrawAddress = "tb1qhlx2vgesz00s4gr6jqqhparezuhtryrkpnd7tm";    
         uint256 withdrawAmount = 9599;

@@ -33,12 +33,7 @@ interface IBitDSMServiceManager is IServiceManager {
      * @param amount Amount of Bitcoin being withdrawn
      */
     event BitcoinWithdrawalTransactionSigned(address indexed pod, address indexed operator, uint256 amount);
-    /**
-     * @notice Emitted when a BTC address is verified for a given scriptPubKey
-     * @param operator Address of the operator verifying the address
-     * @param btcAddress The verified BTC address
-     */
-    event BTCAddressVerified(address indexed operator, string btcAddress);
+  
     /**
      * @notice Confirms a Bitcoin chain deposit by verifying operator signature and updating pod state
      * @param pod Address of the Bitcoin pod receiving the deposit
@@ -90,6 +85,7 @@ interface IBitDSMServiceManager is IServiceManager {
      * @notice Verify if a BTC address is correct for a given scriptPubKey
      * @param btcAddress The bech32 BTC address to verify
      * @param script The scriptPubKey to verify against
+     * @param operatorBtcPubKey The operator's BTC public key
      */
-    function verifyBTCAddress(string calldata btcAddress, bytes calldata script) external;
+    function verifyBTCAddress(string calldata btcAddress, bytes calldata script, bytes calldata operatorBtcPubKey) external returns (bool);
 }

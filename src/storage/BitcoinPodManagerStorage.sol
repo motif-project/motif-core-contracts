@@ -7,6 +7,9 @@ import  "../interfaces/IBitcoinPodManager.sol";
  * @dev Contains all state variables used by BitcoinPodManager
  */
 contract BitcoinPodManagerStorage {
+    /// @notice Total number of pods created
+    uint256 internal _totalPods;
+    
     /// @notice Total Value Locked in all pods (in satoshis)
     uint256 internal _totalTVL;
     
@@ -34,6 +37,8 @@ contract BitcoinPodManagerStorage {
     
     /// @dev Gap for future storage variables
     uint256[50] private __gap;
+
+
 
     /// @dev Internal setters
     function _setUserPod(address user, address pod) internal {

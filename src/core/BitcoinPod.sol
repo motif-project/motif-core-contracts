@@ -26,7 +26,7 @@ import "../interfaces/IBitcoinPod.sol";
 contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
     address public operator;
     bytes public operatorBtcPubKey;
-    bytes public bitcoinAddress;
+    string public bitcoinAddress;
     uint256 public bitcoinBalance;
     bool public locked;
     address public immutable manager;
@@ -74,7 +74,7 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
      * - Sets the pod's Bitcoin address
      * - Initializes pod as unlocked
      */
-    function initialize(address _owner, address _operator, bytes memory _operatorBtcPubKey, bytes memory _btcAddress) external initializer {
+    function initialize(address _owner, address _operator, bytes memory _operatorBtcPubKey, string memory _btcAddress) external initializer {
         __Ownable_init();
         _transferOwnership(_owner);
         operator = _operator;
@@ -83,7 +83,7 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
         locked = false;
     }
     // @inheritdoc IBitcoinPod
-    function getBitcoinAddress() external view returns (bytes memory) {
+    function getBitcoinAddress() external view returns (string memory) {
         return bitcoinAddress;
     }
     // @inheritdoc IBitcoinPod

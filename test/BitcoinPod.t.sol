@@ -10,14 +10,14 @@ contract BitcoinPodTest is Test {
     address public operator;
     address public manager;
     bytes public operatorBtcPubKey;
-    bytes public bitcoinAddress;
+    string public bitcoinAddress;
 
     function setUp() public {
         owner = address(this);
         operator = address(0x1);
         manager = address(0x2);
         operatorBtcPubKey = hex"0123456789abcdef";
-        bitcoinAddress = hex"fedcba9876543210";
+        bitcoinAddress = "tb1qhlx2vgesz00s4gr6jqqhparezuhtryrkpnd7tm";
 
         pod = new BitcoinPod(manager);
         pod.initialize(owner, operator, operatorBtcPubKey, bitcoinAddress);
@@ -28,7 +28,7 @@ contract BitcoinPodTest is Test {
         assertEq(pod.operator(), operator);
         assertEq(pod.manager(), manager);
         assertEq(pod.operatorBtcPubKey(), operatorBtcPubKey);
-        assertEq(pod.bitcoinAddress(), bitcoinAddress);
+        assertEq(bytes(pod.bitcoinAddress()), bytes(bitcoinAddress));
         assertEq(pod.bitcoinBalance(), 0);
         assertFalse(pod.locked());
         assertEq(pod.signedBitcoinWithdrawTransaction(), "");

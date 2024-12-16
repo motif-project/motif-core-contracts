@@ -179,13 +179,13 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
     /**
     * @inheritdoc IBitDSMServiceManager
      */
-    function verifyBTCAddress(string calldata btcAddress, bytes calldata script) external onlyRegisteredOperator(msg.sender) {
+    function verifyBTCAddress(string calldata btcAddress, bytes calldata script, bytes calldata operatorBtcPubKey) external pure returns (bool) {
         // extract publickeys from the script
         (bytes memory operatorKey, bytes memory userKey) = BitcoinUtils.extractPublicKeys(script);
         // check if userKey is 33 bytes
         require(userKey.length == 33, "Invalid user key length. It should be 33 bytes");
         // verify correct operator BTC key is used in script
-        require(_areEqual(operatorKey, IBitDSMRegistry(stakeRegistry).getOperatorBtcPublicKey(msg.sender)), "Invalid operator BTC key");
+        require(_areEqual(operatorKey, operatorBtcPubKey), "Invalid operator BTC key");
         // get scriptPubKey
         bytes32 scriptPubKey = BitcoinUtils.getScriptPubKey(script);
         // convert scriptPubKey to bytes
@@ -196,8 +196,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         // convert scriptPubKey to bech32address
         string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(result);
         // verify the address is correct
-        require(_areEqual(bytes(bech32Address), bytes(btcAddress)), "Invalid BTC address");
-        emit BTCAddressVerified(msg.sender, btcAddress);
+        return _areEqual(bytes(bech32Address), bytes(btcAddress));
     }
 
     /**
@@ -208,10 +207,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
     */
     function _areEqual(bytes memory key1, bytes memory key2) internal pure returns (bool) {
         if (key1.length != key2.length) return false; // Early exit for length mismatch
-        for (uint256 i = 0; i < key1.length; i++) {
-            if (key1[i] != key2[i]) return false; // Compare each byte
-        }
-        return true;
+        return keccak256(key1) == keccak256(key2);
     }
 
    function verifyPSBTOutputs(bytes calldata psbtBytes, string memory withdrawAddress, uint256 withdrawAmount) public pure returns (bool) {
