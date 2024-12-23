@@ -55,7 +55,7 @@ contract BitcoinUtilsTest is Test {
         
         // creaate withness script
         bytes memory script = hex"522103cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b02103809fa6d4203620e2532d27d482082de8ec866845124038c38bb02e2229dc6cdb52ae";
-        bytes32 scriptPubKey = BitcoinUtils.getWitnessProgram(script);
+        bytes32 scriptPubKey = BitcoinUtils.getScriptPubKey(script);
         // convert scriptPubKey to bytes
         bytes memory scriptPubKeyBytes = new bytes(32);
         assembly {
@@ -65,9 +65,10 @@ contract BitcoinUtilsTest is Test {
         //bytes32 scriptPubKey = bytes32(hex"ab38e9a92e1bdabd59bb4095f6e0a16f9e1e95c71b47465e86f480a80c536813");
         string memory expected = "tb1q3tndt980zwsmg8veckdqp8z6es5vsdz95f2rpu63dcn3lea27k3q2lx63u";
        // bytes scriptPubKey = hex"0xbfcca6233013df0aa07a900170f479172eb19076";
+       console.log("Result:", scriptPubKeyBytes.length);
         string memory result = BitcoinUtils.convertScriptPubKeyToBech32Address(scriptPubKeyBytes);
         console.log("Result:", result);
-        console.log("Result lenght", bytes(result).length);
+        console.log("Result length", bytes(result).length);
         assertEq(result, expected, "Incorrect bech32 address conversion");
 
     }
@@ -110,8 +111,6 @@ contract BitcoinUtilsTest is Test {
         string memory expected2 = "tb1qk65u3hprqy94zhrx0w4d80xhygr27368m3jr4a";
         string memory result2 = BitcoinUtils.convertScriptPubKeyToBech32Address(script2);
         assertEq(result2, expected2, "Test vector 2 failed");
-
-        
     }
 
     // Test error cases
@@ -194,7 +193,7 @@ contract BitcoinUtilsTest is Test {
 
     function testEventEmission() public {
         bytes memory script = hex"522103cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b02103809fa6d4203620e2532d27d482082de8ec866845124038c38bb02e2229dc6cdb52ae";
-        bytes32 witnessProgram = BitcoinUtils.getWitnessProgram(script);
+        bytes32 witnessProgram = BitcoinUtils.getScriptPubKey(script);
         vm.expectEmit(true, false, false, false);
         emit ScriptProcessed(witnessProgram);
     }

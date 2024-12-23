@@ -32,31 +32,20 @@ library BitcoinUtils {
   
     // Events
     event ScriptProcessed(bytes program);
-
-    /// @notice Calculates witness program from script
-    /// @param script The input script
-    /// @return witnessProgram The witness program
-    function getWitnessProgram(bytes calldata script) 
-        public
-        pure
-        returns (bytes32 witnessProgram)
-    {
-        if (script.length < MIN_SCRIPT_LENGTH) {
-            revert InvalidScriptLength(script.length);
-        }
-        if (script.length > MAX_SCRIPT_LENGTH) {
-            revert ScriptTooLong(script.length);
-        }
-
-        witnessProgram = sha256(script);
-    }
     
     /// @notice Converts a script to a P2WSH scriptPubKey format
     /// @dev Creates a Pay-to-Witness-Script-Hash (P2WSH) scriptPubKey from a given script
     /// @param script The script to convert
     /// @return The P2WSH witnessProgram as scriptPubKey
     function getScriptPubKey(bytes calldata script) public pure returns (bytes32) {
-        return getWitnessProgram(script);
+        require(script.length <= 71 , "Script length exceeds 2 of 2 multisig P2WSH script");
+        if (script.length < MIN_SCRIPT_LENGTH) {
+            revert InvalidScriptLength(script.length);
+        }
+        if (script.length > MAX_SCRIPT_LENGTH) {
+            revert ScriptTooLong(script.length);
+        }
+        return sha256(script);
     }
     
     /// @notice Verifies if a script matches an address's witness program
@@ -70,6 +59,7 @@ library BitcoinUtils {
     ) public pure returns (bool) {
         return sha256(script) == witnessProgram;
     }
+
     /// @notice Converts an array of bytes from one bit width to another
     /// @dev Used for converting between 8-bit and 5-bit representations in Bech32 encoding
     /// @param data The input byte array to convert
@@ -111,7 +101,7 @@ library BitcoinUtils {
         bytes memory result = new bytes(length);
         for (uint256 i = 0; i < length; i++) {
             result[i] = ret[i];
-        }
+        } 
         return result;
     }
     
@@ -134,6 +124,13 @@ library BitcoinUtils {
         for (uint256 j = 0; j < hrp.length; j++) {
             values[i++] = uint8(hrp[j]) & 31;
         }
+
+        // for (; i < hrp.length; i++) {
+        //     values[i] = uint8(hrp[i]) >> 5;
+        //     values[i + hrp.length + 1] = uint8(hrp[i]) & 31;
+        // }
+        // values[hrp.length] = 0;
+        // i = i + hrp.length + 1;
         // Add data
         for (uint256 j = 0; j < data.length && i < values.length; j++) {
             values[i++] = uint8(data[j]);
@@ -188,6 +185,7 @@ library BitcoinUtils {
     /// @custom:throws "Invalid witness version" if first byte is not 0x00
     function convertScriptPubKeyToBech32Address(bytes calldata scriptPubKey) public pure returns (string memory) {
         require(scriptPubKey.length > 2, "Invalid scriptPubKey length");
+        require(scriptPubKey.length ==32 || scriptPubKey.length == 20 , "ScriptPubKey should be 32 or 22 bytes");
        // require(scriptPubKey[0] == 0x00, "Invalid witness version");
         
         // HRP for mainnet
@@ -235,6 +233,7 @@ library BitcoinUtils {
     /// @return pubKey1 The first 33-byte compressed public key
     /// @return pubKey2 The second 33-byte compressed public key
     function extractPublicKeys(bytes calldata scriptBytes) public pure returns (bytes memory pubKey1, bytes memory pubKey2) {
+        require(scriptBytes.length <= 71 , "Script length exceeds 2 of 2 multisig P2WSH script");
         require(scriptBytes[scriptBytes.length-1] == bytes1(0xae), "Script is not a multisig");
         require(scriptBytes[scriptBytes.length-2] == bytes1(0x52), "m value for multisig is not 2");
         require(scriptBytes[0] == bytes1(0x52), "n value for multisig is not 2");
