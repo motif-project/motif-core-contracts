@@ -117,20 +117,20 @@ library BitcoinUtils {
         uint256 i = 0;
         
         // Expand HRP
-        for (; i < hrp.length; i++) {
-            values[i] = uint8(hrp[i]) >> 5;
-        }
-        values[i++] = 0;
-        for (uint256 j = 0; j < hrp.length; j++) {
-            values[i++] = uint8(hrp[j]) & 31;
-        }
-
         // for (; i < hrp.length; i++) {
         //     values[i] = uint8(hrp[i]) >> 5;
-        //     values[i + hrp.length + 1] = uint8(hrp[i]) & 31;
         // }
-        // values[hrp.length] = 0;
-        // i = i + hrp.length + 1;
+        // values[i++] = 0;
+        // for (uint256 j = 0; j < hrp.length; j++) {
+        //     values[i++] = uint8(hrp[j]) & 31;
+        // }
+
+        for (; i < hrp.length; i++) {
+            values[i] = uint8(hrp[i]) >> 5;
+            values[i + hrp.length + 1] = uint8(hrp[i]) & 31;
+        }
+        values[hrp.length] = 0;
+        i = i + hrp.length + 1;
         // Add data
         for (uint256 j = 0; j < data.length && i < values.length; j++) {
             values[i++] = uint8(data[j]);
