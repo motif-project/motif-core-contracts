@@ -26,8 +26,6 @@ library BitcoinUtils {
     uint256 private constant MIN_SCRIPT_LENGTH = 1;
     bytes1 private constant WITNESS_VERSION_0 = 0x00;
     bytes1 private constant PUSH_32_BYTES = 0x20;
-    // Bech32 charset for encoding
-    bytes constant CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
    
   
     // Events
@@ -68,42 +66,55 @@ library BitcoinUtils {
     /// @param pad Whether to pad any remaining bits in the final group
     /// @return A new byte array with the converted bit representation
     function _convertBits(bytes memory data, uint8 fromBits, uint8 toBits, bool pad) 
-        internal pure returns (bytes memory) {
+    internal pure returns (bytes memory) {
+    
+    require(fromBits > 0 && toBits > 0 && fromBits <= 8 && toBits <= 8, "Invalid bit size");
+    
+    // Calculate max length once
+    uint256 maxLength = (data.length * fromBits + toBits - 1) / toBits;
+    bytes memory ret = new bytes(maxLength);
+    
+    uint256 acc;
+    uint256 bits;
+    uint256 length;
+    
+    // Use assembly for bit manipulation
+    assembly {
+        let dataPtr := add(data, 32)
+        let retPtr := add(ret, 32)
+        let mask := sub(shl(toBits, 1), 1)  // (1 << toBits) - 1
         
-        require(fromBits > 0 && toBits > 0, "Invalid bit size");
-        require(fromBits <= 8 && toBits <= 8, "Bit size too large");
-        uint256 acc = 0;  // Accumulator for bits
-        uint256 bits = 0; // Number of bits in accumulator
-        uint256 maxOutputLength = (data.length * fromBits + toBits - 1) / toBits;
-        bytes memory ret = new bytes(maxOutputLength); // exact size needed: (data.length * fromBits + toBits - 1) / toBits
-        uint256 length = 0; // Current length of output
-
-        // Process each input byte
-        for (uint256 i = 0; i < data.length; i++) {
-            acc = (acc << fromBits) | uint8(data[i]);
-            bits += fromBits;
-
-            // Extract complete groups of toBits
-            while (bits >= toBits) {
-                bits -= toBits;
-                ret[length] = bytes1(uint8((acc >> bits) & ((1 << toBits) - 1)));
-                length++;
+        for { let i := 0 } lt(i, mload(data)) { i := add(i, 1) } {
+            // Load next byte and shift into accumulator
+            acc := or(shl(fromBits, acc), byte(0, mload(add(dataPtr, i))))
+            bits := add(bits, fromBits)
+            
+            // Extract complete groups
+            for {} gt(bits, toBits) {} {
+                bits := sub(bits, toBits)
+                mstore8(
+                    add(retPtr, length), 
+                    and(shr(bits, acc), mask)
+                )
+                length := add(length, 1)
             }
         }
-
-        // Handle remaining bits if padding is requested
-        if (pad && bits > 0) {
-            ret[length] = bytes1(uint8((acc << (toBits - bits)) & ((1 << toBits) - 1)));
-            length++;
+        
+        // Handle padding
+        if and(pad, gt(bits, 0)) {
+            mstore8(
+                add(retPtr, length),
+                and(shl(sub(toBits, bits), acc), mask)
+            )
+            length := add(length, 1)
         }
-
-        // Create final result array trimmed to actual length
-        bytes memory result = new bytes(length);
-        for (uint256 i = 0; i < length; i++) {
-            result[i] = ret[i];
-        } 
-        return result;
+        
+        // Update final length
+        mstore(ret, length)
     }
+    
+    return ret;
+}
     
     /// @notice Creates a checksum for Bech32 address
     /// @dev Implements the checksum calculation for Bech32 addresses
@@ -115,15 +126,6 @@ library BitcoinUtils {
         uint256[] memory values = new uint256[](hrp.length * 2 + 1 + data.length + 6);
 
         uint256 i = 0;
-        
-        // Expand HRP
-        // for (; i < hrp.length; i++) {
-        //     values[i] = uint8(hrp[i]) >> 5;
-        // }
-        // values[i++] = 0;
-        // for (uint256 j = 0; j < hrp.length; j++) {
-        //     values[i++] = uint8(hrp[j]) & 31;
-        // }
 
         for (; i < hrp.length; i++) {
             values[i] = uint8(hrp[i]) >> 5;
@@ -171,8 +173,18 @@ library BitcoinUtils {
         
         // Convert checksum to 5-bit array
         bytes memory checksum = new bytes(6);
-        for (i = 0; i < 6; i++) {
-            checksum[i] = bytes1(uint8((polymod >> (5 * (5-i))) & 31));
+        assembly {
+            let checksumPtr := add(checksum, 32)  // Point to checksum data (after length prefix)
+            
+            // Calculate all 6 bytes of the checksum
+            for { let iter := 0 } lt(iter, 6) { iter := add(iter, 1) } {
+                // Calculate shift amount: 5 * (5-i)
+                let shift := mul(5, sub(5, iter))
+                // Extract the byte: (polymod >> shift) & 31
+                let value := and(shr(shift, polymod), 31)
+                // Store the byte
+                mstore8(add(checksumPtr, iter), value)
+            }
         }
         return checksum;
     }
@@ -184,44 +196,73 @@ library BitcoinUtils {
     /// @custom:throws "Invalid scriptPubKey length" if scriptPubKey is too short
     /// @custom:throws "Invalid witness version" if first byte is not 0x00
     function convertScriptPubKeyToBech32Address(bytes calldata scriptPubKey) public pure returns (string memory) {
-        require(scriptPubKey.length > 2, "Invalid scriptPubKey length");
         require(scriptPubKey.length ==32 || scriptPubKey.length == 20 , "ScriptPubKey should be 32 or 22 bytes");
-       // require(scriptPubKey[0] == 0x00, "Invalid witness version");
         
         // HRP for mainnet
         bytes memory hrp = "tb";
         
         bytes memory converted = _convertBits(scriptPubKey, 8, 5, true);
        
-        bytes memory convertedWithPrefix = new bytes(converted.length + 1);  // 1 byte prefix + 32 bytes hash
-        convertedWithPrefix[0] = 0x00;  // Prepend 0x00
-        
-        
-        for (uint256 i = 0; i < converted.length; i++) {
-            convertedWithPrefix[i + 1] = converted[i];
+        bytes memory convertedWithPrefix = new bytes(converted.length + 1);  // 1 byte prefix + 32 bytes hash // 1 byte prefix + 32 bytes hash
+        assembly {
+            // Store 0x00 at first byte
+            mstore8(add(convertedWithPrefix, 32), 0x00)
+            
+            // Copy converted bytes to convertedWithPrefix starting at position 1
+            let srcPtr := add(converted, 32)
+            let destPtr := add(convertedWithPrefix, 33)
+            let len := mload(converted)
+            for { let i := 0 } lt(i, len) { i := add(i, 1) } {
+                mstore8(add(destPtr, i), byte(0, mload(add(srcPtr, i))))
+            }
         }
         // Get checksum
         bytes memory checksum = _createChecksum(hrp, convertedWithPrefix);
         
         // // Combine all parts
         bytes memory combined = new bytes(convertedWithPrefix.length + checksum.length);
-        for (uint256 i = 0; i < convertedWithPrefix.length; i++) {
-            combined[i] = convertedWithPrefix[i];
+        assembly {
+            // Copy convertedWithPrefix
+            let srcPtr1 := add(convertedWithPrefix, 32)
+            let destPtr := add(combined, 32)
+            let len1 := mload(convertedWithPrefix)
+            for { let i := 0 } lt(i, len1) { i := add(i, 1) } {
+                mstore8(add(destPtr, i), byte(0, mload(add(srcPtr1, i))))
+            }
+            
+            // Copy checksum after convertedWithPrefix
+            let srcPtr2 := add(checksum, 32)
+            let destStart := add(destPtr, len1)
+            let len2 := mload(checksum)
+            for { let i := 0 } lt(i, len2) { i := add(i, 1) } {
+                mstore8(add(destStart, i), byte(0, mload(add(srcPtr2, i))))
+            }
         }
-        for (uint256 i = 0; i < checksum.length; i++) {
-            combined[convertedWithPrefix.length + i] = checksum[i];
-        }
-        
         // Create final string
         bytes memory result = new bytes(hrp.length + 1 + combined.length);
-        for (uint256 i = 0; i < hrp.length; i++) {
-            result[i] = hrp[i];
-        }
-        result[hrp.length] = "1";
-        
-        // Encode data using charset
-        for (uint256 i = 0; i < combined.length; i++) {
-            result[hrp.length + 1 + i] = CHARSET[uint8(combined[i])];
+        bytes memory charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";  // Define charset here
+        assembly {
+            // Copy hrp
+            let destPtr := add(result, 32)
+            let srcPtr := add(hrp, 32)
+            let hrpLen := mload(hrp)
+            for { let i := 0 } lt(i, hrpLen) { i := add(i, 1) } {
+                mstore8(add(destPtr, i), byte(0, mload(add(srcPtr, i))))
+            }
+            
+            // Add "1" separator
+            mstore8(add(destPtr, hrpLen), 0x31)  // ASCII "1" is 0x31
+            
+            // Encode data using charset
+            let combinedPtr := add(combined, 32)
+            let charsetPtr := add(charset, 32)
+            let combinedLen := mload(combined)
+            let resultStart := add(destPtr, add(hrpLen, 1))
+            for { let i := 0 } lt(i, combinedLen) { i := add(i, 1) } {
+                let charIndex := byte(0, mload(add(combinedPtr, i)))
+                let char := byte(0, mload(add(charsetPtr, charIndex)))
+                mstore8(add(resultStart, i), char)
+            }
         }
         
         return string(result);
@@ -408,29 +449,23 @@ library BitcoinUtils {
     /// @param pos The current position in the byte array
     /// @return The new position after skipping the input
     function _skipInput(bytes calldata data, uint256 pos) internal pure returns (uint256) {
-        if (pos + 32 > data.length) {
+        // Combine bounds checks
+        uint256 len = data.length;
+        if (pos + 40 > len) {  // 32 (txid) + 4 (vout) + 4 (minimum for next checks)
             revert UnexpectedEndOfData();
         }
-        pos += 32; // Skip txid
-
-        if (pos + 4 > data.length) {
-            revert UnexpectedEndOfData();
+        
+        unchecked {
+            pos += 36;  // Skip txid (32) and vout index (4)
+            
+            (uint64 scriptSize, uint256 bytesRead) = _readCompactSize(data, pos);
+            pos += bytesRead + uint256(scriptSize);
+            
+            if (pos + 4 > len) {
+                revert UnexpectedEndOfData();
+            }
+            return pos + 4;  // Skip sequence
         }
-        pos += 4; // Skip vout index
-
-        // Skip script
-        if (pos >= data.length) {
-            revert UnexpectedEndOfData();
-        }
-        (uint64 scriptSize, uint256 bytesRead) = _readCompactSize(data, pos);
-        pos += bytesRead + uint256(scriptSize);
-
-        if (pos + 4 > data.length) {
-            revert UnexpectedEndOfData();
-        }
-        pos += 4; // Skip sequence
-
-        return pos;
     }
 
     /// @notice Reads a 16-bit unsigned integer from a byte array in little-endian format
@@ -479,8 +514,13 @@ library BitcoinUtils {
     /// @return A new bytes array containing the extracted slice
     function _extractBytes(bytes calldata data, uint256 start, uint256 length) internal pure returns (bytes memory) {
         bytes memory result = new bytes(length);
-        for (uint256 i = 0; i < length; i++) {
-            result[i] = data[start + i];
+        assembly {
+            // Copy from calldata to memory
+            calldatacopy(
+                add(result, 32),             // destination (skip length prefix)
+                add(data.offset, start),     // source
+                length                       // length
+            )
         }
         return result;
     }

@@ -117,7 +117,7 @@ contract BitcoinUtilsTest is Test {
     function testErrorCases() public{
         // Test empty script
         bytes memory emptyScript = "";
-        vm.expectRevert("Invalid scriptPubKey length");
+        vm.expectRevert("ScriptPubKey should be 32 or 22 bytes");
         BitcoinUtils.convertScriptPubKeyToBech32Address(emptyScript);
     }
     // test bytes array eqality 
