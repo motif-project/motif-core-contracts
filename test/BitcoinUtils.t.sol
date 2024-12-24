@@ -65,10 +65,7 @@ contract BitcoinUtilsTest is Test {
         //bytes32 scriptPubKey = bytes32(hex"ab38e9a92e1bdabd59bb4095f6e0a16f9e1e95c71b47465e86f480a80c536813");
         string memory expected = "tb1q3tndt980zwsmg8veckdqp8z6es5vsdz95f2rpu63dcn3lea27k3q2lx63u";
        // bytes scriptPubKey = hex"0xbfcca6233013df0aa07a900170f479172eb19076";
-       console.log("Result:", scriptPubKeyBytes.length);
         string memory result = BitcoinUtils.convertScriptPubKeyToBech32Address(scriptPubKeyBytes);
-        console.log("Result:", result);
-        console.log("Result length", bytes(result).length);
         assertEq(result, expected, "Incorrect bech32 address conversion");
 
     }
@@ -101,8 +98,8 @@ contract BitcoinUtilsTest is Test {
     // Test vectors for specific Bitcoin addresses
     function testKnownAddresses() public pure{
         // Test vector 1: Native SegWit P2WSH
-        bytes memory script1 = hex"0020a1c56d436c786b7288c70576f2f9dae9b4f4b3a99f5c26e2c14c57aa6d19e1c7";
-        string memory expected1 = "tb1qqqs2r3tdgdk8s6mj3rrs2ahjl8dwnd85kw5e7hpxutq5c4a2d5v7r3cskcr2m";
+        bytes memory script1 = hex"a1c56d436c786b7288c70576f2f9dae9b4f4b3a99f5c26e2c14c57aa6d19e1c7";
+        string memory expected1 = "tb1q58zk6smv0p4h9zx8q4m097w6ax60fvafnawzdckpf3t65mgeu8rsvuu7cy";
         string memory result1 = BitcoinUtils.convertScriptPubKeyToBech32Address(script1);
         assertEq(result1, expected1, "Test vector 1 failed");
 

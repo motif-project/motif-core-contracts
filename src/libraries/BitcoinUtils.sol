@@ -123,28 +123,53 @@ library BitcoinUtils {
     /// @return A bytes array containing the checksum
     function _createChecksum(bytes memory hrp, bytes memory data) 
         internal pure returns (bytes memory) {
-        uint256[] memory values = new uint256[](hrp.length * 2 + 1 + data.length + 6);
-
-        uint256 i = 0;
-
-        for (; i < hrp.length; i++) {
-            values[i] = uint8(hrp[i]) >> 5;
-            values[i + hrp.length + 1] = uint8(hrp[i]) & 31;
-        }
-        values[hrp.length] = 0;
-        i = i + hrp.length + 1;
-        // Add data
-        for (uint256 j = 0; j < data.length && i < values.length; j++) {
-            values[i++] = uint8(data[j]);
-        }
+                uint256[] memory values = new uint256[](hrp.length * 2 + 1 + data.length + 6);
         
-        // Add checksum template
-        values[i++] = 0;
-        values[i++] = 0;
-        values[i++] = 0;
-        values[i++] = 0;
-        values[i++] = 0;
-        values[i++] = 0;
+        assembly {
+            let valuesPtr := add(values, 32)  // Point to values array data
+            let hrpPtr := add(hrp, 32)        // Point to hrp array data
+            let hrpLen := mload(hrp)          // Get hrp length
+            let dataPtr := add(data, 32)      // Point to data array
+            let dataLen := mload(data)        // Get data length
+            let i := 0
+            
+            // First loop to process hrp bytes
+            for { let j := 0 } lt(j, hrpLen) { j := add(j, 1) } {
+                let hrpByte := byte(0, mload(add(hrpPtr, j)))
+                // values[j] = uint8(hrp[j]) >> 5
+                mstore(add(valuesPtr, mul(j, 32)), shr(5, hrpByte))
+                // values[j + hrpLen + 1] = uint8(hrp[j]) & 31
+                mstore(
+                    add(valuesPtr, mul(add(add(j, hrpLen), 1), 32)),
+                    and(hrpByte, 31)
+                )
+            }
+            
+            // values[hrpLen] = 0
+            mstore(add(valuesPtr, mul(hrpLen, 32)), 0)
+            
+            // i = i + hrpLen + 1
+            i := add(add(hrpLen, hrpLen), 1)
+            
+            // Add data values
+            for { let j := 0 } 
+            and(lt(j, dataLen), lt(i, mload(values))) 
+            { j := add(j, 1) } {
+                mstore(
+                    add(valuesPtr, mul(i, 32)),
+                    byte(0, mload(add(dataPtr, j)))
+                )
+                i := add(i, 1)
+            }
+            
+            // Explicitly add the six zeros at the end
+            mstore(add(valuesPtr, mul(i, 32)), 0)
+            mstore(add(valuesPtr, mul(add(i, 1), 32)), 0)
+            mstore(add(valuesPtr, mul(add(i, 2), 32)), 0)
+            mstore(add(valuesPtr, mul(add(i, 3), 32)), 0)
+            mstore(add(valuesPtr, mul(add(i, 4), 32)), 0)
+            mstore(add(valuesPtr, mul(add(i, 5), 32)), 0)
+        }
         
         // Correct generator constants from BIP-0173
         uint256[5] memory GEN = [
@@ -156,6 +181,7 @@ library BitcoinUtils {
         ];
         // Calculate checksum
         uint256 polymod = 1;
+        uint256 i = 0;
         for (i = 0; i < values.length; i++) {
             uint256 b = polymod >> 25;
             polymod = ((polymod & 0x1ffffff) << 5) ^ values[i];
@@ -174,16 +200,16 @@ library BitcoinUtils {
         // Convert checksum to 5-bit array
         bytes memory checksum = new bytes(6);
         assembly {
-            let checksumPtr := add(checksum, 32)  // Point to checksum data (after length prefix)
+            let checksumPtr := add(checksum, 32)  // Point to checksum array data
             
-            // Calculate all 6 bytes of the checksum
-            for { let iter := 0 } lt(iter, 6) { iter := add(iter, 1) } {
+            // Calculate each byte of the checksum
+            for { i := 0 } lt(i, 6) { i := add(i, 1) } {
                 // Calculate shift amount: 5 * (5-i)
-                let shift := mul(5, sub(5, iter))
+                let shift := mul(5, sub(5, i))
                 // Extract the byte: (polymod >> shift) & 31
                 let value := and(shr(shift, polymod), 31)
                 // Store the byte
-                mstore8(add(checksumPtr, iter), value)
+                mstore8(add(checksumPtr, i), value)
             }
         }
         return checksum;
