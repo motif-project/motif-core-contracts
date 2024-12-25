@@ -473,7 +473,7 @@ contract BitcoinPodManager is
         // Can only cancel withdrawal request if the Operator has not submitted the PSBT or complete transaction
         //get the signed transaction
         bytes memory signedTransaction = IBitcoinPod(pod).getSignedBitcoinWithdrawTransaction();
-        if (signedTransaction.length == 0) {
+        if (signedTransaction.length > 0) {
             revert WithdrawalTransactionAlreadySubmitted(pod);
         }
         // set the pod state to active
