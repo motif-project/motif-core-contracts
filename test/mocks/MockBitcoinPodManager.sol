@@ -31,7 +31,9 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
     function getTotalPods() external view returns (uint256) {
         return totalPods;
     }
-    
+    function hasPendingBitcoinDepositRequest(address pod) external view returns (bool) {
+        return podToBitcoinDepositRequest[pod].isPending;
+    }
     function createPod(address operator, string memory /*_btcAddress*/, bytes calldata /*_script*/) external returns (address) {
         require(userToPod[msg.sender] == address(0), "User already has a pod");
         
@@ -77,7 +79,7 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
         require(msg.sender == bitDSMServiceManager, "Only service manager");
         require(podToBitcoinDepositRequest[pod].transactionId == transactionId, "Invalid tx id");
 
-        IBitcoinPod(pod).mint(IBitcoinPod(pod).getOperator(), amount);
+        IBitcoinPod(pod).mint(amount);
         totalTVL += amount;
         delete podToBitcoinDepositRequest[pod];
     }
@@ -105,7 +107,7 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
         require(bytes(podToWithdrawalAddress[pod]).length != 0, "No withdrawal request");
 
         uint256 balance = IBitcoinPod(pod).getBitcoinBalance();
-        IBitcoinPod(pod).burn(IBitcoinPod(pod).getOperator(), balance);
+        IBitcoinPod(pod).burn(balance);
         totalTVL -= balance;
         delete podToWithdrawalAddress[pod];
     }

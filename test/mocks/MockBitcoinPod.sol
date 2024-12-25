@@ -12,11 +12,20 @@ contract MockBitcoinPod is IBitcoinPod {
     uint256 public bitcoinBalance;
     address public immutable podManager;
     bytes public signedBitcoinWithdrawTransaction;
+    PodState public podState;
 
     constructor(address _owner, address _manager) {
         operator = _owner;
         podManager = _manager;
         locked = false;
+        podState = PodState.Active;
+    }
+
+    function setPodState(PodState _newState) external {
+        require(msg.sender == podManager, "Only manager can set state");
+        PodState previousState = podState;
+        podState = _newState;
+        emit PodStateChanged(previousState, _newState);
     }
 
     function getBitcoinAddress() external view returns (string memory) {
@@ -49,14 +58,14 @@ contract MockBitcoinPod is IBitcoinPod {
         return locked;
     }
 
-    function mint(address /*_operator*/, uint256 amount) external {
+    function mint(uint256 amount) external {
         
         require(msg.sender == podManager, "Only manager can mint");
         require(!locked, "Pod is locked");
         bitcoinBalance += amount;
     }
 
-    function burn(address /*_operator*/, uint256 amount) external {
+    function burn(uint256 amount) external {
         require(msg.sender == podManager, "Only manager can burn");
         require(!locked, "Pod is locked");
         require(bitcoinBalance >= amount, "Insufficient balance");
@@ -71,4 +80,9 @@ contract MockBitcoinPod is IBitcoinPod {
     function getSignedBitcoinWithdrawTransaction() external view returns (bytes memory) {
         return signedBitcoinWithdrawTransaction;
     }
+
+    function getPodState() external view returns (PodState) {
+        return podState;
+    }
+    
 }

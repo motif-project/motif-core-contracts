@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "../interfaces/IBitcoinPod.sol";
 
 /**
@@ -18,12 +19,16 @@ import "../interfaces/IBitcoinPod.sol";
  * - Manages withdrawal transaction storage
  *
  * Security considerations:
- * - Only the designated operator can perform sensitive actions
  * - Pod can be locked to prevent unauthorized withdrawals
  * - Manager contract has privileged access for administrative functions
- */
+ *
+ * @dev Security assumptions:
+ * - All state-modifying functions are only callable by the PodManager contract
+ * - The PodManager is trusted and implements necessary security measures
+ * - No direct external calls are made from these functions
+ **/
 
-contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
+contract BitcoinPod is IBitcoinPod, OwnableUpgradeable, ReentrancyGuardUpgradeable { 
     address public operator;
     bytes public operatorBtcPubKey;
     string public bitcoinAddress;
@@ -31,15 +36,17 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
     bool public locked;
     address public immutable manager;
     bytes public signedBitcoinWithdrawTransaction;
-
+    PodState public podState;
+    uint256 private constant MAX_TX_SIZE = 1024 * 100; // 100KB max transaction size
+    
     /**
-     * @notice Modifier to ensure only the designated operator can perform an action
-     * @param _operator Address of the operator to check against
+     * @notice Modifier to ensure the pod is active before execution
      */
-    modifier onlyOperator(address _operator) {
-        require(_operator == operator, "Only designated operator can perform this action");
+    modifier onlyActive() {
+        require(podState == PodState.Active, "Pod is not active");
         _;
     }
+    
     /**
      * @notice Modifier to ensure the pod is not locked before execution
      */
@@ -47,6 +54,7 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
         require(!locked, "Pod is locked");
         _;
     }
+    
     /**
      * @notice Modifier to ensure only the manager contract can perform an action
      */
@@ -54,6 +62,7 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
         require(msg.sender == manager, "Only manager can perform this action");
         _;
     }
+    
     /**
      * @notice Initializes the immutable manager address
      * @param _manager Address of the BitcoinPodManager contract that manages this pod
@@ -62,6 +71,7 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
         manager = _manager;
         //_disableInitializers();
     }
+    
     /**
      * @notice Initializes a new Bitcoin pod with the specified parameters
      * @param _owner Address that will own this pod contract
@@ -72,61 +82,107 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
      * - Transfers ownership to _owner
      * - Sets operator and their BTC public key
      * - Sets the pod's Bitcoin address
-     * - Initializes pod as unlocked
+     * - Initializes pod as unlocked and active
      */
     function initialize(address _owner, address _operator, bytes memory _operatorBtcPubKey, string memory _btcAddress) external initializer {
+        require(_operatorBtcPubKey.length > 0, "Operator BTC public key cannot be empty");
+        require(bytes(_btcAddress).length > 0, "Bitcoin address cannot be empty");
+        require(_operator != address(0), "Operator cannot be the zero address");
+        require(_owner != address(0), "Owner cannot be the zero address");
+
         __Ownable_init();
+        __ReentrancyGuard_init();
         _transferOwnership(_owner);
         operator = _operator;
         operatorBtcPubKey = _operatorBtcPubKey;
         bitcoinAddress = _btcAddress;
         locked = false;
+        podState = PodState.Active;
+        emit PodInitialized(address(this), _owner, _operator);
     }
+    
     // @inheritdoc IBitcoinPod
     function getBitcoinAddress() external view returns (string memory) {
         return bitcoinAddress;
     }
+    
     // @inheritdoc IBitcoinPod
     function getOperatorBtcPubKey() external view returns (bytes memory) {
         return operatorBtcPubKey;
     }
+    
     // @inheritdoc IBitcoinPod
     function getOperator() external view returns (address) {
         return operator;
     }
+    
     // @inheritdoc IBitcoinPod
     function getBitcoinBalance() external view returns (uint256) {
         return bitcoinBalance;
     }
+    
     // @inheritdoc IBitcoinPod
     function getSignedBitcoinWithdrawTransaction() external view returns (bytes memory) {
         return signedBitcoinWithdrawTransaction;
     }
+
     // @inheritdoc IBitcoinPod
-    function setSignedBitcoinWithdrawTransaction(bytes memory _signedBitcoinWithdrawTransaction) external onlyManager(){
+    function setSignedBitcoinWithdrawTransaction(bytes memory _signedBitcoinWithdrawTransaction) external onlyManager() nonReentrant{
+        require(_signedBitcoinWithdrawTransaction.length > 0, "Signed transaction cannot be empty");
+        require(podState == PodState.Inactive, "Pod is not inactive");
+        require(_signedBitcoinWithdrawTransaction.length <= MAX_TX_SIZE, "Signed transaction exceeds max size");
         signedBitcoinWithdrawTransaction = _signedBitcoinWithdrawTransaction;
+        emit WithdrawTransactionSet(_signedBitcoinWithdrawTransaction);
     }
+    
     // @inheritdoc IBitcoinPod
-    function lock() external onlyManager lockedPod {
-        locked = true;
+    function setPodState(PodState _newState) external onlyManager nonReentrant {
+        require(_isValidStateTransition(podState, _newState), "Invalid state transition");
+        PodState previousState = podState;
+        podState = _newState;
+        emit PodStateChanged(previousState, _newState);
     }
+    
+    // @inheritdoc IBitcoinPod
+    function lock() external onlyManager onlyActive lockedPod {
+        locked = true;
+        emit PodLocked(address(this));
+    }
+    
     // @inheritdoc IBitcoinPod
     function unlock() external onlyManager {
         locked = false;
+        emit PodUnlocked(address(this));
     }
+    
     // @inheritdoc IBitcoinPod
     function isLocked() external view returns (bool) {
         return locked;
     }
+    
     // @inheritdoc IBitcoinPod
-    function mint(address _operator, uint256 amount) external onlyManager onlyOperator(_operator) lockedPod {
-
+    function mint(uint256 amount) external onlyManager onlyActive lockedPod nonReentrant {
+        require(amount > 0, "Amount must be greater than 0");
         bitcoinBalance += amount;
+        emit MintPodValue(address(this), amount);
     }
-   // @inheritdoc IBitcoinPod
-    function burn(address _operator, uint256 amount) external onlyManager onlyOperator(_operator) lockedPod {
+    
+    // @inheritdoc IBitcoinPod
+    function burn(uint256 amount) external onlyManager lockedPod nonReentrant {
+        require(podState == PodState.Inactive, "Pod is active");
         require(bitcoinBalance >= amount, "Insufficient balance");
         bitcoinBalance -= amount;
+        emit BurnPodValue(address(this), amount);
     }
+   
+    // Add getter function for pod state
+    function getPodState() external view returns (PodState) {
+        return podState;
+    }
+    function _isValidStateTransition(PodState _from, PodState _to) internal pure returns (bool) {
+        return (_from == PodState.Active && _to == PodState.Inactive) ||
+           (_from == PodState.Inactive && _to == PodState.Active);
+    }
+
 
 }

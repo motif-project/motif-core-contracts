@@ -25,7 +25,47 @@ import "@eigenlayer-middleware/src/interfaces/IServiceManager.sol";
      * - EigenLayer: For staking and operator management
      */
 interface IBitDSMServiceManager is IServiceManager {
+    // Custom errors 
     
+    /// @dev Thrown when caller is not the authorized operator for a pod
+    error UnauthorizedPodOperator(address caller, address pod);
+    
+    /// @dev Thrown when a signature verification fails
+    error InvalidOperatorSignature(address operator);
+    /// @dev Thrown when a key length is invalid    
+    error InvalidKeyLength(uint256 length);
+    /// @dev Thrown when a operator BTC key is invalid
+    error InvalidOperatorBTCKey(bytes operatorKey, bytes operatorBtcPubKey);
+ 
+    /// @dev Thrown when there is no withdrawal request to confirm
+    error NoWithdrawalRequestToConfirm(address pod);
+    /// @dev Thrown when there is no withdrawal request to process
+    error NoWithdrawalRequestToProcess(address pod);
+    /// @dev Thrown when a withdrawal request already exists
+    error WithdrawalRequestAlreadyExists(address pod);
+    /// @dev Thrown when there is no deposit request to confirm
+    error NoDepositRequestToConfirm(address pod);
+    /// @dev Thrown when PSBT outputs are invalid
+    error InvalidPSBTOutputs();
+    /// @dev Thrown when the BitcoinPodManager address is zero
+    error ZeroBitcoinPodManagerAddress();
+    /// @dev Thrown when the signature length is invalid
+    error InvalidSignatureLength(uint256 length);
+    /// @dev Thrown when the withdraw address is empty
+    error EmptyWithdrawAddress();
+    /// @dev Thrown when the withdraw amount is zero
+    error ZeroWithdrawAmount();
+    /// @dev Thrown when there are too many PSBT outputs
+    error TooManyPSBTOutputs(uint256 length);
+    /// @dev Thrown when there are no PSBT outputs
+    error NoPSBTOutputs();
+    /// @dev Thrown when the PSBT transaction is empty
+    error EmptyPSBTTransaction();
+    /// @dev Thrown when the PSBT transaction is too long or too short
+    error InvalidPSBTTransaction(uint256 length);
+    /// @dev Thrown when the BTC transaction is invalid
+    error InvalidTransaction(uint256 length);
+ 
     /**
      * @notice Emitted when a Bitcoin withdrawal transaction is signed by an operator
      * @param pod Address of the Bitcoin pod processing the withdrawal
@@ -33,7 +73,16 @@ interface IBitDSMServiceManager is IServiceManager {
      * @param amount Amount of Bitcoin being withdrawn
      */
     event BitcoinWithdrawalTransactionSigned(address indexed pod, address indexed operator, uint256 amount);
-  
+    /**
+     * @notice Set the BitcoinPodManager contract address
+     * @param bitcoinPodManager The address of the BitcoinPodManager contract
+     */
+    function setBitcoinPodManager(address bitcoinPodManager) external;
+    /**
+     * @notice Get the BitcoinPodManager contract address
+     * @return The address of the BitcoinPodManager contract
+     */
+    function getBitcoinPodManager() external view returns (address);
     /**
      * @notice Confirms a Bitcoin chain deposit by verifying operator signature and updating pod state
      * @param pod Address of the Bitcoin pod receiving the deposit
@@ -81,11 +130,4 @@ interface IBitDSMServiceManager is IServiceManager {
      * @dev Emits BitcoinWithdrawalConfirmed event via BitcoinPodManager
      */
     function confirmWithdrawal(address pod, bytes calldata transaction, bytes calldata signature) external; 
-    /**
-     * @notice Verify if a BTC address is correct for a given scriptPubKey
-     * @param btcAddress The bech32 BTC address to verify
-     * @param script The scriptPubKey to verify against
-     * @param operatorBtcPubKey The operator's BTC public key
-     */
-    function verifyBTCAddress(string calldata btcAddress, bytes calldata script, bytes calldata operatorBtcPubKey) external returns (bool);
 }

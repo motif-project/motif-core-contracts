@@ -10,7 +10,24 @@ pragma solidity ^0.8.12;
  * - Pod locking/unlocking mechanisms
  */
 interface IBitcoinPodManager {
-   
+    
+    /// @notice Thrown when BTC address length is invalid
+    error InvalidBTCAddressLength(uint256 length);
+    /// @notice Thrown when BTC transaction length is invalid
+    error InvalidBTCAddressInitialByte();
+    /// @notice Thrown when BTC transaction is invalid
+    error InvalidOperatorBTCKey(bytes, bytes);
+    /// @notice Thrown when BTC transaction is invalid
+    error InvalidKeyLength(uint256 length, uint256 expectedLength);
+    /// @notice Thrown when script length is invalid
+    error InvalidScriptLength(uint256 length);
+    /// @notice Thrown when no withdrawal request to cancel
+    error NoWithdrawalRequestToCancel(address pod);
+    /// @notice Thrown when withdrawal transaction already submitted
+    error WithdrawalTransactionAlreadySubmitted(address pod);
+    /// @notice Thrown when withdrawal transaction is not submitted
+    error WithdrawalTransactionNotSubmitted(address pod);
+ 
     /**
      * @notice Struct to store Bitcoin deposit request details
      * @param transactionId The Bitcoin transaction ID of the deposit
@@ -43,6 +60,12 @@ interface IBitcoinPodManager {
      * @return BitcoinDepositRequest struct containing the deposit transaction ID, amount and pending status
      */
     function getBitcoinDepositRequest(address pod) external view returns (BitcoinDepositRequest memory);
+    /**
+     * @notice Checks if a pod has a pending Bitcoin deposit request
+     * @param pod The address of the pod to check
+     * @return bool True if there is a pending deposit request, false otherwise
+     */
+    function hasPendingBitcoinDepositRequest(address pod) external view returns (bool);
     /**
      * @notice Gets the withdrawal address set for a pod (alias of getPodWithdrawalAddress)
      * @param pod The address of the pod to lookup
@@ -155,6 +178,12 @@ interface IBitcoinPodManager {
      * @param btcAddress The verified BTC address
      */
     event BTCAddressVerified(address indexed operator, string btcAddress);
+
+    /**
+     * @notice Emitted when a withdrawal request is cancelled
+     * @param pod The address of the pod where the withdrawal request is cancelled
+     */
+    event WithdrawalRequestCancelled(address indexed pod);
     /**
      * @notice Creates a new pod
      * @param operator The address of the operator creating the pod

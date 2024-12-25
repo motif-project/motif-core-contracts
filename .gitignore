@@ -35,3 +35,4 @@ docs/book.css
 docs/solidity.min.js
 docs/book.toml
 docs/.gitignore
+remappings.txt

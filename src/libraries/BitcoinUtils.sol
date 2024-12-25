@@ -485,6 +485,10 @@ library BitcoinUtils {
         }
         return result;
     }
+    function areEqualStrings(bytes memory a, bytes memory b) external pure returns (bool) {
+        if (a.length != b.length) return false;
+        return keccak256(a) == keccak256(b);
+    }
 
     /// @notice Returns the version number of this library
     /// @dev Used for tracking library versions and compatibility

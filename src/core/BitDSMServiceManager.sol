@@ -29,13 +29,17 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
     // Attach library to bytes type for direct usage with bytes variables
     using BitcoinUtils for bytes;
     // State variables
-    IBitcoinPodManager _bitcoinPodManager;
-
-    modifier onlyRegisteredOperator(address operator) {
-        require(
-            ECDSAStakeRegistry(stakeRegistry).operatorRegistered(operator),
-            "Operator must be registered"
-        );
+    IBitcoinPodManager private _bitcoinPodManager;
+    mapping(bytes32 => bool) private _usedSignatures;
+    uint256 private constant MAX_PSBT_OUTPUTS = 10;
+    /**
+     * @notice Modifier to ensure only the pod operator can call the function
+     * @param pod The address of the Bitcoin pod
+     */
+    modifier onlyPodOperator(address pod) {
+        if (IBitcoinPod(pod).getOperator() != msg.sender) {
+            revert UnauthorizedPodOperator(msg.sender, pod);
+        }
         _;
     }
     /**
@@ -69,9 +73,20 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         __ServiceManagerBase_init(_owner, _rewardsInitiator);
         _bitcoinPodManager = IBitcoinPodManager(bitcoinPodManager);
     }
-
-    function setBitcoinPodManager(address bitcoinPodManager) external {
+    /**
+     * @inheritdoc IBitDSMServiceManager
+     */
+    function setBitcoinPodManager(address bitcoinPodManager) external onlyOwner{
+        if (bitcoinPodManager == address(0)) {
+            revert ZeroBitcoinPodManagerAddress();
+        }
         _bitcoinPodManager = IBitcoinPodManager(bitcoinPodManager);
+    }
+    /**
+     * @inheritdoc IBitDSMServiceManager
+     */
+    function getBitcoinPodManager() external view returns (address) {
+        return address(_bitcoinPodManager);
     }
 
     /**
@@ -80,15 +95,16 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
     function confirmDeposit(
         address pod,
         bytes calldata signature
-    ) external {
-        require(
-            IBitcoinPod(pod).getOperator() == msg.sender,
-            "Only operator that owns the pod can confirm deposit"
-        );
-      //  require(
-        //    podToBitcoinDepositRequest[pod].length > 0,
-          //  "No deposit requests to confirm"
-       // );
+    ) external onlyPodOperator(pod) {
+       if (!_bitcoinPodManager.hasPendingBitcoinDepositRequest(pod)) {
+            revert NoDepositRequestToConfirm(pod);
+        }
+        // check signature size 
+        if (signature.length != 65) {
+            revert InvalidSignatureLength(signature.length);
+        }
+        bytes32 sigHash = keccak256(abi.encodePacked(signature));
+        require(!_usedSignatures[sigHash], "Signature already used");
         IBitcoinPodManager.BitcoinDepositRequest memory bitcoinDepositRequest = 
         _bitcoinPodManager.getBitcoinDepositRequest(pod);
 
@@ -96,31 +112,47 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         bytes32 ethSignedMessageHash = ECDSA.toEthSignedMessageHash(messageHash);
         address signer = ECDSA.recover(ethSignedMessageHash, signature);
 
-        require(signer == msg.sender, "Invalid Operator signature");
+        
+        if (signer != msg.sender) {
+            revert InvalidOperatorSignature(signer);
+        }
+        _usedSignatures[sigHash] = true;
         _bitcoinPodManager.confirmBitcoinDeposit(pod, bitcoinDepositRequest.transactionId, bitcoinDepositRequest.amount ) ;
     }
 
    /**
     * @inheritdoc IBitDSMServiceManager
      */
-    function withdrawBitcoinPSBT(address pod, uint256 amount, bytes calldata psbtTransaction, bytes calldata signature) external {
-        require(
-            IBitcoinPod(pod).getOperator() == msg.sender,
-            "Only operator that owns the pod can process withdrawal"
-        );
-        // check if the pod has a withdrawal request
-       require(bytes(_bitcoinPodManager.getBitcoinWithdrawalAddress(pod)).length == 0, "Withdrawal request already exists");  
+    function withdrawBitcoinPSBT(address pod, uint256 amount, bytes calldata psbtTransaction, bytes calldata signature) external onlyPodOperator(pod) {
+        if (psbtTransaction.length == 0 || psbtTransaction.length > 10000) {
+            revert InvalidPSBTTransaction(psbtTransaction.length);
+        }
         string memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
+        // check if the pod has a valid withdrawal request
+        if (bytes(withdrawAddress).length == 0) {
+            revert NoWithdrawalRequestToProcess(pod);
+        }
+          // check signature size 
+        if (signature.length != 65) {
+            revert InvalidSignatureLength(signature.length);
+        }
+        bytes32 sigHash = keccak256(abi.encodePacked(signature));
 
+        require(!_usedSignatures[sigHash], "Signature already used");
         // verify the PSBT is constructed correctly
-        //require(_verifyPSBTOutputs(psbtTransaction, withdrawAddress, amount), "Invalid PSBT");
+        if (!_verifyPSBTOutputs(psbtTransaction, withdrawAddress, amount)) {
+            revert InvalidPSBTOutputs();
+        }
+        
         // verify the operator sign over psbt
         bytes32 messageHash = keccak256(abi.encodePacked(pod, amount, psbtTransaction, withdrawAddress));
         bytes32 ethSignedMessageHash = ECDSA.toEthSignedMessageHash(messageHash);
         address signer = ECDSA.recover(ethSignedMessageHash, signature);
-        require(signer == msg.sender, "Invalid Operator signature");
+       if (signer != msg.sender) {
+            revert InvalidOperatorSignature(signer);
+        }
 
-       
+        _usedSignatures[sigHash] = true;
         // store the psbt in the pod
         _bitcoinPodManager.setSignedBitcoinWithdrawTransactionPod(pod, psbtTransaction);
         // emit the event
@@ -130,23 +162,34 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
     /**
     * @inheritdoc IBitDSMServiceManager
      */
-    function withdrawBitcoinCompleteTx(address pod, uint256 amount, bytes calldata completeTx, bytes calldata signature) external {
-        require(
-            IBitcoinPod(pod).getOperator() == msg.sender,
-            "Only operator that owns the pod can process withdrawal"
-        );
+    function withdrawBitcoinCompleteTx(address pod, uint256 amount, bytes calldata completeTx, bytes calldata signature) external onlyPodOperator(pod) {
         // get withdraw address from the pod
         string memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
+         // check if the pod has a valid withdrawal request
+        if (bytes(withdrawAddress).length == 0) {
+            revert NoWithdrawalRequestToProcess(pod);
+        }
+        // check signature size 
+        if (signature.length != 65) {
+            revert InvalidSignatureLength(signature.length);
+        }
+        bytes32 sigHash = keccak256(abi.encodePacked(signature));
+        require(!_usedSignatures[sigHash], "Signature already used");
+       
             // decode the transaction
         // check if the transaction is a withdrawal transaction
         // check if the withdrawal address appear as the recipient in the transaction 
         // and amount is greater than 0
         // verify the operator sign over completeTx 
+        // check signature size 
+        
         bytes32 messageHash = keccak256(abi.encodePacked(pod, amount, completeTx, withdrawAddress));
         bytes32 ethSignedMessageHash = ECDSA.toEthSignedMessageHash(messageHash);
         address signer = ECDSA.recover(ethSignedMessageHash, signature);
-        require(signer == msg.sender, "Invalid Operator signature");
-
+        if (signer != msg.sender) {
+            revert InvalidOperatorSignature(signer);
+        }
+        _usedSignatures[sigHash] = true;
         // send the completeTx to the pod owner
         _bitcoinPodManager.setSignedBitcoinWithdrawTransactionPod(pod, completeTx);
         // emit the event
@@ -156,70 +199,70 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
      /**
     * @inheritdoc IBitDSMServiceManager
      */
-    function confirmWithdrawal(address pod, bytes calldata transaction, bytes calldata signature) external {
-        require(
-            IBitcoinPod(pod).getOperator() == msg.sender,
-            "Only operator that owns the pod can confirm withdrawal"
-        );
-       require(
-           bytes(_bitcoinPodManager.getBitcoinWithdrawalAddress(pod)).length > 0 ,
-           "No withdrawal request to confirm"
-        );
-
-        string memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
-    
+    function confirmWithdrawal(address pod, bytes calldata transaction, bytes calldata signature) external onlyPodOperator(pod) {
+       // check tx size
+       if (transaction.length == 0 || transaction.length > 10000) {
+            revert InvalidTransaction(transaction.length);
+        }
+        // get the withdrawal address from the pod
+       string memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
+       // check if the pod has a withdrawal request
+        if (bytes(withdrawAddress).length == 0) {
+            revert NoWithdrawalRequestToConfirm(pod);
+        }   
+        // check signature size 
+        if (signature.length != 65) {
+            revert InvalidSignatureLength(signature.length);
+        }
+        // check if the signature is already used
+        bytes32 sigHash = keccak256(abi.encodePacked(signature));
+        require(!_usedSignatures[sigHash], "Signature already used");
+        
         bytes32 messageHash = keccak256(abi.encodePacked(pod, transaction, withdrawAddress));
         bytes32 ethSignedMessageHash = ECDSA.toEthSignedMessageHash(messageHash);
         address signer = ECDSA.recover(ethSignedMessageHash, signature);
 
-        require(signer == msg.sender, "Invalid signature");
+        if (signer != msg.sender) {
+            revert InvalidOperatorSignature(signer);
+        }
+        _usedSignatures[sigHash] = true;
         _bitcoinPodManager.withdrawBitcoinAsTokens(pod);
     }
-   
-    /**
-    * @inheritdoc IBitDSMServiceManager
+
+   /**
+     * @notice Verify if the PSBT outputs contain the correct withdraw address and amount
+     * @param psbtBytes The PSBT data to verify
+     * @param withdrawAddress The expected withdraw address
+     * @param withdrawAmount The expected withdraw amount
+     * @return bool True if the PSBT outputs are correct, false otherwise
+     * @dev Validates:
+     *      - Single matching output with exact amount
+     *      - Valid PSBT format and version
+     * @dev Reverts if:
+     *      - Invalid inputs
      */
-    function verifyBTCAddress(string calldata btcAddress, bytes calldata script, bytes calldata operatorBtcPubKey) external pure returns (bool) {
-        // extract publickeys from the script
-        (bytes memory operatorKey, bytes memory userKey) = BitcoinUtils.extractPublicKeys(script);
-        // check if userKey is 33 bytes
-        require(userKey.length == 33, "Invalid user key length. It should be 33 bytes");
-        // verify correct operator BTC key is used in script
-        require(_areEqual(operatorKey, operatorBtcPubKey), "Invalid operator BTC key");
-        // get scriptPubKey
-        bytes32 scriptPubKey = BitcoinUtils.getScriptPubKey(script);
-        // convert scriptPubKey to bytes
-        bytes memory result = new bytes(32);
-        assembly {
-            mstore(add(result, 32), scriptPubKey)
-        }   
-        // convert scriptPubKey to bech32address
-        string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(result);
-        // verify the address is correct
-        return _areEqual(bytes(bech32Address), bytes(btcAddress));
-    }
-
-    /**
-    * @notice Compare two bytes arrays of same size
-    * @param key1 The first bytes array to compare
-    * @param key2 The second bytes array to compare
-    * @return bool True if the arrays are equal, false otherwise
-    */
-    function _areEqual(bytes memory key1, bytes memory key2) internal pure returns (bool) {
-        if (key1.length != key2.length) return false; // Early exit for length mismatch
-        return keccak256(key1) == keccak256(key2);
-    }
-
-   function verifyPSBTOutputs(bytes calldata psbtBytes, string memory withdrawAddress, uint256 withdrawAmount) public pure returns (bool) {
+   function _verifyPSBTOutputs(bytes calldata psbtBytes, string memory withdrawAddress, uint256 withdrawAmount) internal pure returns (bool) {
+        if (bytes(withdrawAddress).length == 0) {
+            revert EmptyWithdrawAddress();
+        }
+        if (withdrawAmount == 0) {
+            revert ZeroWithdrawAmount();
+        }
         // Direct library call to extract outputs from the PSBT
         BitcoinUtils.Output[] memory outputs = BitcoinUtils.extractVoutFromPSBT(psbtBytes);
+        if (outputs.length == 0) {
+            revert NoPSBTOutputs();
+        }
+        if (outputs.length > MAX_PSBT_OUTPUTS) {
+            revert TooManyPSBTOutputs(outputs.length);
+        }
         
-        //Process each output
+        //Process each output and find the first instance that matches the withdraw address and amount
         for(uint256 i = 0; i < outputs.length; i++) {
             // convert the scriptPubKey to bech32 address
             string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(outputs[i].scriptPubKey);
             // return true if the address is correct and the amount is correct
-            if (_areEqual(bytes(bech32Address), bytes(withdrawAddress)) && outputs[i].value == withdrawAmount) {
+            if (BitcoinUtils.areEqualStrings(bytes(bech32Address), bytes(withdrawAddress)) && outputs[i].value == withdrawAmount) {
                 return true;
             }
         }

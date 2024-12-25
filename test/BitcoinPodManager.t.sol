@@ -47,25 +47,25 @@ contract MockServiceManager {
     function confirmWithdrawal(address pod) external {
         podManager.withdrawBitcoinAsTokens(pod);
     }
-    function verifyBTCAddress(string calldata btcAddress, bytes calldata script, bytes calldata operatorBtcPubKey) external pure returns (bool) {
-         // extract publickeys from the script
-        (bytes memory operatorKey, bytes memory userKey) = BitcoinUtils.extractPublicKeys(script);
-        // check if userKey is 33 bytes
-        require(userKey.length == 33, "Invalid user key length. It should be 33 bytes");
-        // verify correct operator BTC key is used in script
-        require(_areEqual(operatorKey, operatorBtcPubKey), "Invalid operator BTC key");
-        // get scriptPubKey
-        bytes32 scriptPubKey = BitcoinUtils.getScriptPubKey(script);
-        // convert scriptPubKey to bytes
-        bytes memory result = new bytes(32);
-        assembly {
-            mstore(add(result, 32), scriptPubKey)
-        }   
-        // convert scriptPubKey to bech32address
-        string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(result);
-        // verify the address is correct
-        return _areEqual(bytes(bech32Address), bytes(btcAddress));
-    }
+    // function verifyBTCAddress(string calldata btcAddress, bytes calldata script, bytes calldata operatorBtcPubKey) external pure returns (bool) {
+    //      // extract publickeys from the script
+    //     (bytes memory operatorKey, bytes memory userKey) = BitcoinUtils.extractPublicKeys(script);
+    //     // check if userKey is 33 bytes
+    //     require(userKey.length == 33, "Invalid user key length. It should be 33 bytes");
+    //     // verify correct operator BTC key is used in script
+    //     require(_areEqual(operatorKey, operatorBtcPubKey), "Invalid operator BTC key");
+    //     // get scriptPubKey
+    //     bytes32 scriptPubKey = BitcoinUtils.getScriptPubKey(script);
+    //     // convert scriptPubKey to bytes
+    //     bytes memory result = new bytes(32);
+    //     assembly {
+    //         mstore(add(result, 32), scriptPubKey)
+    //     }   
+    //     // convert scriptPubKey to bech32address
+    //     string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(result);
+    //     // verify the address is correct
+    //     return _areEqual(bytes(bech32Address), bytes(btcAddress));
+    // }
     function _areEqual(bytes memory a, bytes memory b) internal pure returns (bool) {
         return keccak256(a) == keccak256(b);
     }
@@ -123,7 +123,7 @@ contract BitcoinPodManagerTest is Test {
     BitDSMRegistry public bitDSMRegistry;
     BitcoinPodManager public podManager;
     MockAppRegistry public appRegistry;
-    address public owner;
+    address public testOwner;
     MockDelegationManager public delegationManager;
     MockServiceManager public serviceManager;
     address public operator;
@@ -155,8 +155,8 @@ contract BitcoinPodManagerTest is Test {
         delegationManager = new MockDelegationManager();
         bitDSMRegistry = new BitDSMRegistry(IDelegationManager(address(delegationManager)));
         appRegistry = new MockAppRegistry();
-        owner = address(this);
-        appRegistry.initialize(owner);
+        testOwner = address(this);
+        appRegistry.initialize(testOwner);
         podManager = new BitcoinPodManager();
         serviceManager = _deployProxiedServiceManager();
         podManager.initialize(address(appRegistry), address(bitDSMRegistry), address(serviceManager));
@@ -236,11 +236,11 @@ contract BitcoinPodManagerTest is Test {
         
         // Test mint
         vm.expectRevert("Only manager can perform this action");
-        pod.mint(operator, 100);
+        pod.mint(100);
 
         // Test burn
         vm.expectRevert("Only manager can perform this action");
-        pod.burn(operator, 50);
+        pod.burn(50);
 
         // Remove the deposit test as it's not part of the BitcoinPod contract
 
@@ -263,11 +263,11 @@ contract BitcoinPodManagerTest is Test {
         
         // Test mint
         vm.expectRevert("Only manager can perform this action");
-        pod.mint(operator, 100);
+        pod.mint(100);
 
         // Test burn
         vm.expectRevert("Only manager can perform this action");
-        pod.burn(operator, 50);
+        pod.burn(50);
 
         vm.stopPrank();
     }
@@ -403,7 +403,7 @@ contract BitcoinPodManagerTest is Test {
 
         // Register app
         address app = address(0x123);
-        vm.prank(owner);
+        vm.prank(testOwner);
         appRegistry.registerApp(app);
 
         // Delegate pod
@@ -438,7 +438,7 @@ contract BitcoinPodManagerTest is Test {
 
         // Register and delegate to app
         address app = address(0x123);
-        vm.prank(owner);
+        vm.prank(testOwner);
         appRegistry.registerApp(app);
         
         vm.prank(user);
@@ -465,7 +465,7 @@ contract BitcoinPodManagerTest is Test {
 
         // Register and delegate to app
         address app = address(0x123);
-        vm.prank(owner);
+        vm.prank(testOwner);
         appRegistry.registerApp(app);
         
         // Add console logs to verify state
@@ -538,5 +538,82 @@ contract BitcoinPodManagerTest is Test {
         assertEq(pod.getBitcoinBalance(), 0);
         assertEq(podManager.getTotalTVL(), 0);
         assertEq(podManager.getBitcoinWithdrawalAddress(podAddress), "");
+    }
+    function testVerifyBTCAddress() public {
+        // Example P2WSH script with known public keys
+        // This is a mock script representing a 2-of-2 multisig witness script
+        bytes memory script = hex"522103cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b02103fa33caff610ac48ad20c4bd9fa8d7c5b9a5c56b6d6315343f16cb93e59fafd0252ae";
+        
+        // The corresponding bech32 address for the above script (testnet)
+        string memory expectedBtcAddress = "tb1qccmqzwmm95pkyg9zl09mqm6kv95tulydtrr6rswezhnfdtt5hg9qwd09jn";
+        
+        // Mock the operator's BTC public key in the registry
+        // First public key from the script above
+        
+        bytes memory mockOperatorBtcPubKey = hex"03cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b0";
+        
+        // Mock the registry to return our test operator's BTC public key
+        // vm.mockCall(
+        //     address(mockStakeRegistry),
+        //     abi.encodeWithSignature("getOperatorBtcPublicKey(address)", operator),
+        //     abi.encode(mockOperatorBtcPubKey)
+        // );
+
+        (bytes memory pubKey1, bytes memory pubKey2) = BitcoinUtils.extractPublicKeys(script);
+        console.log("pubKey1 length", pubKey1.length);
+        console.log("mockOperatorBtcPubKey length", mockOperatorBtcPubKey.length);
+        assertEq(pubKey1.length, mockOperatorBtcPubKey.length, "Invalid public key Lenght");
+        bool hashkey = keccak256(pubKey1) == keccak256(mockOperatorBtcPubKey);
+        console.log("hashkey", hashkey);
+        assertEq(hashkey, true, "Invalid public key Hash");
+        console.logBytes(pubKey1);
+        console.logBytes(pubKey2);
+
+        // Call verifyBTCAddress as operator
+        vm.prank(operator);
+        //vm.expectEmit(true, true, false, true);
+        //emit BTCAddressVerified(operator, expectedBtcAddress);
+        BTCAddressTestContract btcAddressTestContract = new BTCAddressTestContract();
+       bool isBtcAddress = btcAddressTestContract.verifyBTCAddress(expectedBtcAddress, script, mockOperatorBtcPubKey);
+       assertEq(isBtcAddress, true, "Invalid BTC address");
+       //testing extractpublickeys
+       
+
+       // test getScriptPubKey
+       //bytes32  scriptPubKey = BitcoinUtils.getScriptPubKey(script);
+      //assertEq(scriptPubKey, hex"0020ab38e9a92e1bdabd59bb4095f6e0a16f9e1e95c71b47465e86f480a80c536813", "Invalid scriptPubKey");
+       //console.logBytes32(scriptPubKey);
+       // test convertScriptPubKeyToBech32Address
+       //string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(scriptPubKey);
+       //assertEq(bech32Address, expectedBtcAddress, "Invalid bech32 address");
+       //assertEq(pubKey1, mockOperatorBtcPubKey, "Invalid public key 1");
+       //require(pubKey2.length == 33, "Invalid public key 2 length");
+    }
+
+    function testFailVerifyBTCAddressInvalidOperator() public {
+        bytes memory script = hex"522102c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee521021c1db6e604a4909a6e70f1994e37df6dfdcb19c8ee4c9648f37087e5f36388b352ae";
+        string memory btcAddress = "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7";
+        
+        // Call with non-operator address should fail
+        vm.prank(address(0xbad));
+        BTCAddressTestContract btcAddressTestContract = new BTCAddressTestContract();
+        btcAddressTestContract.verifyBTCAddress(btcAddress, script, operatorBtcPubKey);
+    }
+
+    function testFailVerifyBTCAddressInvalidScript() public {
+        // Invalid script (wrong length)
+        bytes memory invalidScript = hex"1234";
+        string memory btcAddress = "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7";
+        // deploy the mock contract
+        BTCAddressTestContract btcAddressTestContract = new BTCAddressTestContract();
+        vm.prank(operator);
+        btcAddressTestContract.verifyBTCAddress(btcAddress, invalidScript, operatorBtcPubKey);
+    }
+    
+}
+// Mock contract to test verifyBTCAddress
+contract BTCAddressTestContract is BitcoinPodManager {
+    function verifyBTCAddress(string calldata btcAddress, bytes calldata script, bytes memory operatorBtcKey) external pure returns (bool) {
+        return _verifyBTCAddress(btcAddress, script, operatorBtcKey);
     }
 }

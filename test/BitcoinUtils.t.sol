@@ -192,11 +192,10 @@ contract BitcoinUtilsTest is Test {
         assertLt(gasUsed1, gasUsed2, "Hash comparison should be faster than assembly comparison");
     }
 
-    function test_EventEmission() public {
+    function testEventEmission() public {
         bytes memory script = hex"522103cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b02103809fa6d4203620e2532d27d482082de8ec866845124038c38bb02e2229dc6cdb52ae";
         bytes32 witnessProgram = BitcoinUtils.getWitnessProgram(script);
         vm.expectEmit(true, false, false, false);
         emit ScriptProcessed(witnessProgram);
-        // function call
     }
 } 
