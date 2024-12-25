@@ -27,8 +27,9 @@ library BitcoinUtils {
     bytes1 private constant PUSH_32_BYTES = 0x20;
 
     // Events
-    event ScriptProcessed(bytes program);
-
+    //event PSBTVerificationFailed();
+    //event PSBTVerificationSuccess();
+   
     /// @notice Converts a script to a P2WSH scriptPubKey format
     /// @dev Creates a Pay-to-Witness-Script-Hash (P2WSH) scriptPubKey from a given script
     /// @param script The script to convert
@@ -404,7 +405,6 @@ library BitcoinUtils {
 
             outputs[i] = Output({value: value, scriptPubKey: witnessprogram});
         }
-        //  emit ScriptProcessed(psbtBytes);
         return outputs;
     }
     /// @notice Reads a compact size integer from a byte array

@@ -120,17 +120,21 @@ contract BitcoinPodTest is Test {
         vm.prank(manager);
         pod.unlock();
 
-        // Try burning too much
-        // vm.prank(manager);
-        // vm.expectRevert("Insufficient balance");
-        // pod.burn(amount + 1);
+        // set the pod state as inactive
+        vm.prank(manager);
+        pod.setPodState(IBitcoinPod.PodState.Inactive);
 
-        // // Successful burn
-        // vm.prank(manager);
-        // vm.expectEmit(true, true, true, true);
-        // emit BurnPodValue(address(pod), amount);
-        // pod.burn(amount);
-        // assertEq(pod.bitcoinBalance(), 0);
+        // Try burning too much
+        vm.prank(manager);
+        vm.expectRevert("Insufficient balance");
+        pod.burn(amount + 1);
+
+        // Successful burn
+        vm.prank(manager);
+        vm.expectEmit(true, true, true, true);
+        emit BurnPodValue(address(pod), amount);
+        pod.burn(amount);
+        assertEq(pod.bitcoinBalance(), 0);
     }
 
     function testStateTransitions() public {
@@ -204,12 +208,15 @@ contract BitcoinPodTest is Test {
         assertEq(pod.signedBitcoinWithdrawTransaction(), txn);
     }
 
+    /// @notice Tests all getter functions of the BitcoinPod contract
+    /// @dev This is a view function that only reads state variables  
+    // solhint-disable-next-line state-mutability
     function testGetters() public view {
         assertEq(pod.getBitcoinAddress(), bitcoinAddress);
         assertEq(pod.getOperatorBtcPubKey(), operatorBtcPubKey);
         assertEq(pod.getOperator(), operator);
         assertEq(pod.getBitcoinBalance(), 0);
-        assertEq(pod.getSignedBitcoinWithdrawTransaction(), "");
+        assertEq(pod.getSignedBitcoinWithdrawTransaction(), bytes(""));
     }
 
     function testPodState() public view {

@@ -7,7 +7,7 @@ import "../src/libraries/BitcoinUtils.sol";
 contract BitcoinUtilsTest is Test {
     using BitcoinUtils for bytes;
 
-    event ScriptProcessed(bytes32 indexed witnessProgram);
+    
 
     function testConvertBits() public pure {
         //Test case 1: Convert 8-bit to 5-bit
@@ -194,9 +194,10 @@ contract BitcoinUtilsTest is Test {
     }
 
     // function testEventEmission() public {
-    //     bytes memory script = hex"522103cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b02103809fa6d4203620e2532d27d482082de8ec866845124038c38bb02e2229dc6cdb52ae";
-    //     bytes32 witnessProgram = BitcoinUtils.getScriptPubKey(script);
+    //     bytes memory psbt = hex"70736274ff01005202000000010ae75c05525a16550f06a871ae31b5ecbfc778c0f7fc33e7d15cb956cb2479370000000000f5ffffff017f25000000000000160014bfcca6233013df0aa07a900170f479172eb19076000000000001007d0200000001c70045a2d38337557c4fc9bf65c11dee5c9334328d80bfc040bdc9f57ba1491e0100000000ffffffff021027000000000000220020a816306ea7aa56b85c885244b4b42af2204c2c0b8716734bc7c9e327dc93b2b25e0201000000000016001479f554a3171903aae7a975d7b5de42bf45ee12500000000001012b1027000000000000220020a816306ea7aa56b85c885244b4b42af2204c2c0b8716734bc7c9e327dc93b2b2220203cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b047304402206e62db59302da26342fa718b51bf6f7f49c77413dc6ad0954c7f667fe3d48e2a02200b8d4c61ad840563dd08aeaa47d092d4c4733b195a2e20339699237c7475923881010547522103cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b02103d00e88ffd1282cc378398d624566e76a1c631858cadfc7dc6c06e517f22fa48d52ae220603cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b018aba9403b5400008001000080000000800000000000000000220603d00e88";
+        
     //     vm.expectEmit(true, false, false, false);
-    //     emit ScriptProcessed(witnessProgram);
+    //     emit BitcoinUtils.PSBTVerificationSuccess();
+    //     BitcoinUtils.extractVoutFromPSBT(psbt);
     // }
 }
