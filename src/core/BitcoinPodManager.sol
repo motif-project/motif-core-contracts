@@ -21,10 +21,10 @@ import "../libraries/BitcoinUtils.sol";
  *
  * The BitcoinPodManager contract provides the following key functionality:
  * - Pod creation and management
- * - Bitcoin deposit and withdrawal request handling for each pod 
+ * - Bitcoin deposit and withdrawal request handling for each pod
  * - Integration with BitDSM Service Manager for operator actions
  * - Pod delegation to apps
- 
+ *
  *
  * Key components:
  * - BitcoinPod: Individual custody pods that hold Bitcoin
@@ -40,7 +40,7 @@ import "../libraries/BitcoinUtils.sol";
  *
  * State Management:
  * - Tracks user to pod mappings
- * - Tracks pod to app mappings  
+ * - Tracks pod to app mappings
  * - Tracks deposit requests per pod
  * - Tracks withdrawal addresses per pod
  *
@@ -56,19 +56,19 @@ import "../libraries/BitcoinUtils.sol";
  *    - Operator verifies the bitcoin deposit on Bitcoin Network
  *    - Manager updates pod balance
  *
- * 3. Withdrawals  
+ * 3. Withdrawals
  *    - User initiates withdrawal request
  *    - Operator signs withdrawal transaction
  *    - Manager facilitates withdrawal completion
  */
 
-contract BitcoinPodManager is 
+contract BitcoinPodManager is
     BitcoinPodManagerStorage,
-    Initializable, 
-    OwnableUpgradeable, 
-    PausableUpgradeable, 
-    ReentrancyGuardUpgradeable, 
-    IBitcoinPodManager 
+    Initializable,
+    OwnableUpgradeable,
+    PausableUpgradeable,
+    ReentrancyGuardUpgradeable,
+    IBitcoinPodManager
 {
     /* @dev Ensures that the function is only callable by the `BitDSMServiceManager` contract.
      * This is used to restrict deposit and withdrawal verification to the `BitDSMServiceManager` contract
@@ -83,6 +83,7 @@ contract BitcoinPodManager is
     /* @dev Ensures that the function is only callable by the owner of the pod
      * This is used to restrict actions to the pod owner
      */
+
     modifier onlyPodOwner(address pod) {
         require(_userToPod[msg.sender] == pod, "Not the pod owner");
         _;
@@ -97,11 +98,10 @@ contract BitcoinPodManager is
      * @param bitDSMRegistry_ Address of the BitDSM Registry contract
      * @param bitDSMServiceManager_ Address of the BitDSMServiceManager contract
      */
-    function initialize(
-        address appRegistry_, 
-        address bitDSMRegistry_, 
-        address bitDSMServiceManager_
-    ) public initializer {
+    function initialize(address appRegistry_, address bitDSMRegistry_, address bitDSMServiceManager_)
+        public
+        initializer
+    {
         __Ownable_init();
         __Pausable_init();
         __ReentrancyGuard_init();
@@ -111,10 +111,11 @@ contract BitcoinPodManager is
         _totalTVL = 0;
         _totalPods = 0;
     }
-        /////////////////////////////
+    /////////////////////////////
     //// Interface Getters //////
     /////////////////////////////
     // @inheritdoc IBitcoinPodManager
+
     function getUserPod(address user) external view override returns (address) {
         return _userToPod[user];
     }
@@ -129,7 +130,6 @@ contract BitcoinPodManager is
         return _totalTVL;
     }
 
-    
     function getBitDSMServiceManager() external view override returns (address) {
         return _bitDSMServiceManager;
     }
@@ -172,24 +172,24 @@ contract BitcoinPodManager is
      * @dev Creates new BitcoinPod contract and stores mapping
      * @dev Emits PodCreated event
      */
-    function createPod(address operator, string calldata btcAddress, bytes calldata script)                   
-        external 
-        whenNotPaused 
+    function createPod(address operator, string calldata btcAddress, bytes calldata script)
+        external
+        whenNotPaused
         nonReentrant
         returns (address)
     {
         require(_userToPod[msg.sender] == address(0), "User already has a pod");
         require(IBitDSMRegistry(_bitDSMRegistry).isOperatorBtcKeyRegistered(operator), "Invalid operator");
-        
+
         bytes memory operatorBtcPubKey = IBitDSMRegistry(_bitDSMRegistry).getOperatorBtcPublicKey(operator);
-       // console.logBytes(operatorBtcPubKey);
+        // console.logBytes(operatorBtcPubKey);
         // verify the btc address
         if (!_verifyBTCAddress(btcAddress, script, operatorBtcPubKey)) {
-            revert ("Invalid BTC address");
+            revert("Invalid BTC address");
         }
-    
-       // console.log("isBtcAddress", isBtcAddress);
-       // emit BTCAddressVerified(operator, btcAddress);
+
+        // console.log("isBtcAddress", isBtcAddress);
+        // emit BTCAddressVerified(operator, btcAddress);
         // create the pod
         BitcoinPod newPod = new BitcoinPod(address(this));
         newPod.initialize(msg.sender, operator, operatorBtcPubKey, btcAddress);
@@ -197,7 +197,7 @@ contract BitcoinPodManager is
         _totalPods++;
         // set the user to pod mapping
         _setUserPod(msg.sender, address(newPod));
-        
+
         emit PodCreated(msg.sender, address(newPod), operator);
         // return the pod address
         return address(newPod);
@@ -205,11 +205,11 @@ contract BitcoinPodManager is
 
     /**
      * @inheritdoc IBitcoinPodManager
-    * @dev Checks:
-    * - Caller must be the pod owner
-    * - App contract must be registered in AppRegistry
-    * - Pod must not already be delegated
-    * @dev Updates pod-to-app mapping and emits PodDelegated event
+     * @dev Checks:
+     * - Caller must be the pod owner
+     * - App contract must be registered in AppRegistry
+     * - Pod must not already be delegated
+     * @dev Updates pod-to-app mapping and emits PodDelegated event
      */
     function delegatePod(address pod, address appContract) external whenNotPaused nonReentrant {
         require(_userToPod[msg.sender] == pod, "Not the pod owner");
@@ -230,7 +230,7 @@ contract BitcoinPodManager is
     function undelegatePod(address pod) external whenNotPaused nonReentrant {
         require(_userToPod[msg.sender] == pod, "Not the pod owner");
         require(_podToApp[pod] != address(0), "Pod not delegated");
-        
+
         delete _podToApp[pod];
         emit PodUndelegated(pod);
     }
@@ -246,11 +246,12 @@ contract BitcoinPodManager is
      * - Pod must not be delegated to prevent unauthorized minting
      * - Tokens are minted to the pod owner
      */
+
     function _mintBitcoin(address pod, uint256 amount) internal {
         // check if the pod is undelegated
         require(_podToApp[pod] == address(0), "Pod is delegated");
         IBitcoinPod bitcoinPod = IBitcoinPod(pod);
-        
+
         bitcoinPod.mint(amount);
         _totalTVL += amount;
         emit BitcoinMinted(pod, amount);
@@ -269,7 +270,7 @@ contract BitcoinPodManager is
         // check if the pod is undelegated
         require(_podToApp[pod] == address(0), "Pod is delegated");
         IBitcoinPod bitcoinPod = IBitcoinPod(pod);
-        
+
         bitcoinPod.burn(amount);
         _totalTVL -= amount;
         emit BitcoinBurned(pod, amount);
@@ -282,44 +283,48 @@ contract BitcoinPodManager is
      * - Caller must be the delegated app
      * @dev Locks the pod
      */
+
     function lockPod(address pod) external whenNotPaused nonReentrant {
         address appContract = _podToApp[pod];
         require(appContract != address(0), "Pod not delegated");
         require(msg.sender == appContract, "Only delegated app can lock");
-        
+
         IBitcoinPod(pod).lock();
     }
     /**
-    * @inheritdoc IBitcoinPodManager
+     * @inheritdoc IBitcoinPodManager
      * @dev Checks:
      * - Pod must be delegated to an app
      * - Caller must be the delegated app
      * @dev Unlocks the pod
      */
+
     function unlockPod(address pod) external whenNotPaused nonReentrant {
         address appContract = _podToApp[pod];
         require(appContract != address(0), "Pod not delegated");
         require(msg.sender == appContract, "Only delegated app can unlock");
-        
+
         IBitcoinPod(pod).unlock();
     }
 
-    /** 
+    /**
      * @inheritdoc IBitcoinPodManager
      * @dev Checks:
      * - Caller must be the pod owner
      * - No pending deposit request
      * @dev Updates pod-to-bitcoin deposit request mapping and emits VerifyBitcoinDepositRequest event
      */
-    function verifyBitcoinDepositRequest(address pod, bytes32 transactionId, uint256 amount) external whenNotPaused nonReentrant onlyPodOwner(pod) {
+    function verifyBitcoinDepositRequest(address pod, bytes32 transactionId, uint256 amount)
+        external
+        whenNotPaused
+        nonReentrant
+        onlyPodOwner(pod)
+    {
         // check if any request is pending
-    require(_podToBitcoinDepositRequest[pod].isPending == false, "Request already pending");
-       BitcoinDepositRequest memory request = BitcoinDepositRequest({
-            transactionId: transactionId,
-            amount: amount,
-            isPending: true
-        });
-         _podToBitcoinDepositRequest[pod] = request;
+        require(_podToBitcoinDepositRequest[pod].isPending == false, "Request already pending");
+        BitcoinDepositRequest memory request =
+            BitcoinDepositRequest({transactionId: transactionId, amount: amount, isPending: true});
+        _podToBitcoinDepositRequest[pod] = request;
         // get operator for the pod
         address operator = IBitcoinPod(pod).getOperator();
         emit VerifyBitcoinDepositRequest(pod, operator, request);
@@ -334,7 +339,13 @@ contract BitcoinPodManager is
      * - Clears pending deposit request
      * @dev Emits BitcoinDepositConfirmed event
      */
-    function confirmBitcoinDeposit(address pod, bytes32 transactionId, uint256 amount) external whenNotPaused nonReentrant onlyBitDSMServiceManager{
+
+    function confirmBitcoinDeposit(address pod, bytes32 transactionId, uint256 amount)
+        external
+        whenNotPaused
+        nonReentrant
+        onlyBitDSMServiceManager
+    {
         // get the deposit index
         BitcoinDepositRequest memory depositRequest = _podToBitcoinDepositRequest[pod];
         require(depositRequest.transactionId == transactionId, "Invalid transaction id");
@@ -368,7 +379,12 @@ contract BitcoinPodManager is
      * @dev Updates pod-to-withdrawal address mapping and emits BitcoinWithdrawalPSBTRequest event
      * @dev The operator will create and sign PSBT in response to this request
      */
-    function withdrawBitcoinPSBTRequest(address pod, string memory withdrawAddress) external whenNotPaused nonReentrant onlyPodOwner(pod){
+    function withdrawBitcoinPSBTRequest(address pod, string memory withdrawAddress)
+        external
+        whenNotPaused
+        nonReentrant
+        onlyPodOwner(pod)
+    {
         require(bytes(_podToWithdrawalAddress[pod]).length == 0, "Withdrawal already requested");
         require(bytes(withdrawAddress).length > 0, "Invalid withdraw address");
         // check if the pod is locked
@@ -404,7 +420,12 @@ contract BitcoinPodManager is
      * @dev Updates pod-to-withdrawal address mapping and emits BitcoinWithdrawalCompleteTxRequest event
      * @dev The operator will complete signing the transaction in response to this request
      */
-    function withdrawBitcoinCompleteTxRequest(address pod, bytes memory preSignedWithdrawTransaction, string memory withdrawAddress) external whenNotPaused nonReentrant onlyPodOwner(pod){
+
+    function withdrawBitcoinCompleteTxRequest(
+        address pod,
+        bytes memory preSignedWithdrawTransaction,
+        string memory withdrawAddress
+    ) external whenNotPaused nonReentrant onlyPodOwner(pod) {
         require(bytes(_podToWithdrawalAddress[pod]).length == 0, "Withdrawal already requested");
         require(bytes(withdrawAddress).length > 0, "Invalid withdraw address");
         // check if the pod is locked
@@ -431,11 +452,12 @@ contract BitcoinPodManager is
      * @dev Checks:
      * - Pod must have an active withdrawal request
      */
-    function withdrawBitcoinAsTokens(address pod) external whenNotPaused nonReentrant onlyBitDSMServiceManager{
+
+    function withdrawBitcoinAsTokens(address pod) external whenNotPaused nonReentrant onlyBitDSMServiceManager {
         // get the withdrawal address
         string memory withdrawAddress = _podToWithdrawalAddress[pod];
         // check if the pod has a withdrawal request
-        
+
         if (bytes(withdrawAddress).length == 0) {
             revert NoWithdrawalRequestToCancel(pod);
         }
@@ -460,11 +482,16 @@ contract BitcoinPodManager is
      * @param pod The address of the pod
      * @param signedBitcoinWithdrawTransaction The signed Bitcoin PSBT or raw transaction
      */
-    function setSignedBitcoinWithdrawTransactionPod(address pod, bytes memory signedBitcoinWithdrawTransaction) external whenNotPaused onlyBitDSMServiceManager{
+
+    function setSignedBitcoinWithdrawTransactionPod(address pod, bytes memory signedBitcoinWithdrawTransaction)
+        external
+        whenNotPaused
+        onlyBitDSMServiceManager
+    {
         IBitcoinPod(pod).setSignedBitcoinWithdrawTransaction(signedBitcoinWithdrawTransaction);
     }
 
-    function cancelWithdrawalRequest(address pod) external whenNotPaused onlyPodOwner(pod){
+    function cancelWithdrawalRequest(address pod) external whenNotPaused onlyPodOwner(pod) {
         // check if the pod has a withdrawal request
         string memory withdrawAddress = _podToWithdrawalAddress[pod];
         if (bytes(withdrawAddress).length == 0) {
@@ -482,14 +509,18 @@ contract BitcoinPodManager is
         delete _podToWithdrawalAddress[pod];
         emit WithdrawalRequestCancelled(pod);
     }
-    
+
     /**
      * @notice Verify if a BTC address is correct for a given scriptPubKey
      * @param btcAddress The bech32 BTC address to verify
      * @param script The scriptPubKey to verify against
      * @param operatorBtcPubKey The operator's BTC public key
-     */    
-    function _verifyBTCAddress(string calldata btcAddress, bytes calldata script, bytes memory operatorBtcPubKey) internal pure returns (bool){
+     */
+    function _verifyBTCAddress(string calldata btcAddress, bytes calldata script, bytes memory operatorBtcPubKey)
+        internal
+        pure
+        returns (bool)
+    {
         // Validate inputs
         uint256 btcAddressLength = bytes(btcAddress).length;
         if (btcAddressLength < 14 || btcAddressLength > 90) {
@@ -498,7 +529,7 @@ contract BitcoinPodManager is
         // Initial Byte Check: The first character must be within the ASCII range for valid HRP
         // The HRP part of Bitcoin addresses typically starts with 'b' (98) or 't' (116).
         bytes1 initialByte = bytes(btcAddress)[0];
-        if (initialByte != 'b' && initialByte != 't') {
+        if (initialByte != "b" && initialByte != "t") {
             revert InvalidBTCAddressInitialByte();
         }
         // check if script lengthis valid. for 2 of 2 multisig, it should be 65 bytes
@@ -506,7 +537,7 @@ contract BitcoinPodManager is
             revert InvalidScriptLength(script.length);
         }
         // operatorBtcPubKey is already verified at the time of Operator registration
-        
+
         // extract publickeys from the script
         (bytes memory operatorKey, bytes memory userKey) = BitcoinUtils.extractPublicKeys(script);
         // check if extracted keys are 33 bytes
@@ -523,7 +554,7 @@ contract BitcoinPodManager is
         bytes memory result = new bytes(32);
         assembly {
             mstore(add(result, 32), scriptPubKey)
-        }   
+        }
         // convert scriptPubKey to bech32address
         string memory bech32Address = BitcoinUtils.convertScriptPubKeyToBech32Address(result);
         // verify the address is correct
@@ -533,13 +564,15 @@ contract BitcoinPodManager is
     /**
      * @notice Pauses all contract functions
      * @dev Only callable by contract owner
-     */    function pause() external onlyOwner {
+     */
+    function pause() external onlyOwner {
         _pause();
     }
-  /**
+    /**
      * @notice Unpauses all contract functions
      * @dev Only callable by contract owner
      */
+
     function unpause() external onlyOwner {
         _unpause();
     }

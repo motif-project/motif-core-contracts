@@ -1,17 +1,21 @@
 // // SPDX-License-Identifier: MIT
- pragma solidity ^0.8.12;
+pragma solidity ^0.8.12;
 
- import {Test, console} from "forge-std/Test.sol";
- import "../src/core/BitDSMRegistry.sol";
- import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
- import {IBitDSMRegistry} from "../src/interfaces/IBitDSMRegistry.sol";
+import {Test, console} from "forge-std/Test.sol";
+import "../src/core/BitDSMRegistry.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {IBitDSMRegistry} from "../src/interfaces/IBitDSMRegistry.sol";
 
 import {ISignatureUtils} from "@eigenlayer/src/contracts/interfaces/ISignatureUtils.sol";
 import {IDelegationManager} from "@eigenlayer/src/contracts/interfaces/IDelegationManager.sol";
 import {IStrategy} from "@eigenlayer/src/contracts/interfaces/IStrategy.sol";
 
 import {ECDSAStakeRegistry} from "../src/libraries/ECDSAStakeRegistry.sol";
-import {ECDSAStakeRegistryEventsAndErrors, Quorum, StrategyParams} from "@eigenlayer-middleware/src/interfaces/IECDSAStakeRegistryEventsAndErrors.sol";
+import {
+    ECDSAStakeRegistryEventsAndErrors,
+    Quorum,
+    StrategyParams
+} from "@eigenlayer-middleware/src/interfaces/IECDSAStakeRegistryEventsAndErrors.sol";
 
 contract MockServiceManager {
     // solhint-disable-next-line
@@ -28,10 +32,7 @@ contract MockDelegationManager {
         return 1000; // Return a dummy value for simplicity
     }
 
-    function getOperatorShares(
-        address,
-        address[] memory strategies
-    ) external pure returns (uint256[] memory) {
+    function getOperatorShares(address, address[] memory strategies) external pure returns (uint256[] memory) {
         uint256[] memory response = new uint256[](strategies.length);
         for (uint256 i; i < strategies.length; i++) {
             response[i] = 1000;
@@ -40,13 +41,10 @@ contract MockDelegationManager {
     }
 }
 
-
-
-
 contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
     BitDSMRegistry public registry;
-   // address public owner;
-   MockDelegationManager public mockDelegationManager;
+    // address public owner;
+    MockDelegationManager public mockDelegationManager;
     MockServiceManager public mockServiceManager;
     uint256 public operatorPrvKey;
     address public operator;
@@ -72,27 +70,23 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
         // initialize mock contracts
         mockDelegationManager = new MockDelegationManager();
         mockServiceManager = new MockServiceManager();
-        
+
         // initialize strategy
         IStrategy mockStrategy = IStrategy(address(0x1234));
         Quorum memory quorum = Quorum({strategies: new StrategyParams[](1)});
-        quorum.strategies[0] = StrategyParams({
-            strategy: mockStrategy,
-            multiplier: 10_000
-        });
-    
+        quorum.strategies[0] = StrategyParams({strategy: mockStrategy, multiplier: 10_000});
+
         // Deploy registry
         registry = new BitDSMRegistry(IDelegationManager(address(mockDelegationManager)));
-        
-        registry.initialize(address(mockServiceManager), 100, quorum); 
+
+        registry.initialize(address(mockServiceManager), 100, quorum);
         // register operator1
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator1);
         registry.registerOperatorWithSignature(operatorSignature, operator1, validBtcPublicKey);
-         vm.prank(operator2);
+        vm.prank(operator2);
         registry.registerOperatorWithSignature(operatorSignature, operator2, validBtcPublicKey2);
         vm.roll(block.number + 1);
-        
     }
 
     function testRegisterOperator() public {
@@ -100,12 +94,8 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
         ISignatureUtils.SignatureWithSaltAndExpiry memory signature;
 
         vm.prank(operator);
-        
-        registry.registerOperatorWithSignature(
-            signature,
-            operator,
-            validBtcPublicKey
-        );
+
+        registry.registerOperatorWithSignature(signature, operator, validBtcPublicKey);
         assertTrue(registry.operatorRegistered(operator));
         assertTrue(registry.isOperatorBtcKeyRegistered(operator));
         assertEq(registry.getOperatorBtcPublicKey(operator), validBtcPublicKey);
@@ -114,23 +104,19 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
 
     function testFailRegisterWithInvalidBtcKey() public {
         bytes memory invalidBtcKey = new bytes(32); // Wrong length
-        
+
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
 
         vm.prank(operator);
-        registry.registerOperatorWithSignature(
-            operatorSignature,
-            operator,
-            invalidBtcKey
-        );
-
+        registry.registerOperatorWithSignature(operatorSignature, operator, invalidBtcKey);
     }
+
     function testDeregisterOperator() public {
         // operator1 is already registered in setUp
-        
+
         assertEq(registry.getLastCheckpointOperatorWeight(operator1), 1000);
         vm.prank(operator1);
-        
+
         registry.deregisterOperator();
 
         assertFalse(registry.isOperatorBtcKeyRegistered(operator1));
@@ -142,11 +128,10 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
     function test_RevertsWhen_NotOperator_DeregisterOperator() public {
         address notOperator = address(0x2);
         vm.prank(notOperator);
-        vm.expectRevert(
-            "Operator not registered"
-        );
+        vm.expectRevert("Operator not registered");
         registry.deregisterOperator();
     }
+
     function test_RegisterOperatorWithSignature() public {
         address operatorLocal = address(0x125);
         ISignatureUtils.SignatureWithSaltAndExpiry memory signature;
@@ -155,23 +140,18 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
         assertTrue(registry.operatorRegistered(operatorLocal));
         assertEq(registry.getLastCheckpointOperatorWeight(operatorLocal), 1000);
     }
-    function test_RevertsWhen_AlreadyRegistered_RegisterOperatorWithSignature()
-        public
-    {
+
+    function test_RevertsWhen_AlreadyRegistered_RegisterOperatorWithSignature() public {
         assertEq(registry.getLastCheckpointOperatorWeight(operator1), 1000);
         assertEq(registry.getLastCheckpointTotalWeight(), 2000);
 
         ISignatureUtils.SignatureWithSaltAndExpiry memory signature;
-        vm.expectRevert(
-            "Operator already registered"
-        );
+        vm.expectRevert("Operator already registered");
         vm.prank(operator1);
         registry.registerOperatorWithSignature(signature, operator1, validBtcPublicKey);
     }
 
-    function test_RevertsWhen_SignatureIsInvalid_RegisterOperatorWithSignature()
-        public
-    {
+    function test_RevertsWhen_SignatureIsInvalid_RegisterOperatorWithSignature() public {
         bytes memory signatureData;
         vm.mockCall(
             address(mockServiceManager),
@@ -187,7 +167,7 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
             abi.encode(50)
         );
     }
-    
+
     // Define private and public keys for operator3 and signer
     uint256 private operator3PrvKey = 3;
     address private operator3 = address(vm.addr(operator3PrvKey));
@@ -204,14 +184,8 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
         registry.registerOperatorWithSignature(operatorSignature, signer, validBtcPublicKey);
 
         // Verify that the signing key has been successfully registered for the operator
-        address registeredSigningKey = registry.getLastestOperatorSigningKey(
-            operatorLocal
-        );
-        assertEq(
-            registeredSigningKey,
-            signer,
-            "The registered signing key does not match the provided signing key"
-        );
+        address registeredSigningKey = registry.getLastestOperatorSigningKey(operatorLocal);
+        assertEq(registeredSigningKey, signer, "The registered signing key does not match the provided signing key");
     }
 
     function test_Twice_RegierOperatorWithSignature() public {
@@ -228,19 +202,12 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
         registry.updateOperatorSigningKey(address(420));
 
         // Verify that the signing key has been successfully registered for the operator
-        address registeredSigningKey = registry.getLastestOperatorSigningKey(
-            operatorLocal
-        );
+        address registeredSigningKey = registry.getLastestOperatorSigningKey(operatorLocal);
 
         vm.roll(block.number + 1);
-        registeredSigningKey = registry.getOperatorSigningKeyAtBlock(
-            operatorLocal,
-            uint32(block.number - 1)
-        );
+        registeredSigningKey = registry.getOperatorSigningKeyAtBlock(operatorLocal, uint32(block.number - 1));
         assertEq(
-            registeredSigningKey,
-            address(420),
-            "The registered signing key does not match the provided signing key"
+            registeredSigningKey, address(420), "The registered signing key does not match the provided signing key"
         );
     }
 
@@ -265,10 +232,7 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
         signaturesLocal[0] = abi.encodePacked(r, s, v);
 
         // Check signatures using the registered signing key
-        registry.isValidSignature(
-            dataHash,
-            abi.encode(operators, signaturesLocal, block.number - 1)
-        );
+        registry.isValidSignature(dataHash, abi.encode(operators, signaturesLocal, block.number - 1));
     }
 
     function test_UpdateQuorumConfig() public {
@@ -276,10 +240,7 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
 
         Quorum memory oldQuorum = registry.quorum();
         Quorum memory newQuorum = Quorum({strategies: new StrategyParams[](1)});
-        newQuorum.strategies[0] = StrategyParams({
-            strategy: mockStrategy,
-            multiplier: 10_000
-        });
+        newQuorum.strategies[0] = StrategyParams({strategy: mockStrategy, multiplier: 10_000});
         address[] memory operators = new address[](2);
         operators[0] = operator1;
         operators[1] = operator2;
@@ -291,9 +252,7 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
     }
 
     function test_RevertsWhen_InvalidQuorum_UpdateQuourmConfig() public {
-        Quorum memory invalidQuorum = Quorum({
-            strategies: new StrategyParams[](1)
-        });
+        Quorum memory invalidQuorum = Quorum({strategies: new StrategyParams[](1)});
         invalidQuorum.strategies[0] = StrategyParams({
             /// TODO: Make mock strategy
             strategy: IStrategy(address(420)),
@@ -303,19 +262,13 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
         operators[0] = operator1;
         operators[1] = operator2;
 
-        vm.expectRevert(
-            ECDSAStakeRegistryEventsAndErrors.InvalidQuorum.selector
-        );
+        vm.expectRevert(ECDSAStakeRegistryEventsAndErrors.InvalidQuorum.selector);
         registry.updateQuorumConfig(invalidQuorum, operators);
     }
+
     function test_RevertsWhen_NotOwner_UpdateQuorumConfig() public {
-        Quorum memory validQuorum = Quorum({
-            strategies: new StrategyParams[](1)
-        });
-        validQuorum.strategies[0] = StrategyParams({
-            strategy: IStrategy(address(420)),
-            multiplier: 10_000
-        });
+        Quorum memory validQuorum = Quorum({strategies: new StrategyParams[](1)});
+        validQuorum.strategies[0] = StrategyParams({strategy: IStrategy(address(420)), multiplier: 10_000});
 
         address[] memory operators = new address[](2);
         operators[0] = operator1;
@@ -348,71 +301,45 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
         operators[0] = operator1;
 
         registry.updateOperators(operators);
-        uint256 updatedWeight = registry.getLastCheckpointOperatorWeight(
-            operator1
-        );
+        uint256 updatedWeight = registry.getLastCheckpointOperatorWeight(operator1);
         assertEq(updatedWeight, 1000);
     }
+
     function test_RevertSWhen_Duplicate_UpdateQuorumConfig() public {
-        Quorum memory invalidQuorum = Quorum({
-            strategies: new StrategyParams[](2)
-        });
-        invalidQuorum.strategies[0] = StrategyParams({
-            strategy: IStrategy(address(420)),
-            multiplier: 5000
-        });
+        Quorum memory invalidQuorum = Quorum({strategies: new StrategyParams[](2)});
+        invalidQuorum.strategies[0] = StrategyParams({strategy: IStrategy(address(420)), multiplier: 5000});
         address[] memory operators = new address[](2);
         operators[0] = operator1;
         operators[1] = operator2;
 
-        invalidQuorum.strategies[1] = StrategyParams({
-            strategy: IStrategy(address(420)),
-            multiplier: 5000
-        });
+        invalidQuorum.strategies[1] = StrategyParams({strategy: IStrategy(address(420)), multiplier: 5000});
         vm.expectRevert(ECDSAStakeRegistryEventsAndErrors.NotSorted.selector);
         registry.updateQuorumConfig(invalidQuorum, operators);
     }
 
     function test_RevertSWhen_NotSorted_UpdateQuorumConfig() public {
-        Quorum memory invalidQuorum = Quorum({
-            strategies: new StrategyParams[](2)
-        });
-        invalidQuorum.strategies[0] = StrategyParams({
-            strategy: IStrategy(address(420)),
-            multiplier: 5000
-        });
+        Quorum memory invalidQuorum = Quorum({strategies: new StrategyParams[](2)});
+        invalidQuorum.strategies[0] = StrategyParams({strategy: IStrategy(address(420)), multiplier: 5000});
         address[] memory operators = new address[](2);
         operators[0] = operator1;
         operators[1] = operator2;
 
-        invalidQuorum.strategies[1] = StrategyParams({
-            strategy: IStrategy(address(419)),
-            multiplier: 5000
-        });
+        invalidQuorum.strategies[1] = StrategyParams({strategy: IStrategy(address(419)), multiplier: 5000});
         vm.expectRevert(ECDSAStakeRegistryEventsAndErrors.NotSorted.selector);
         registry.updateQuorumConfig(invalidQuorum, operators);
     }
 
     function test_RevertSWhen_OverMultiplierTotal_UpdateQuorumConfig() public {
-        Quorum memory invalidQuorum = Quorum({
-            strategies: new StrategyParams[](1)
-        });
-        invalidQuorum.strategies[0] = StrategyParams({
-            strategy: IStrategy(address(420)),
-            multiplier: 10_001
-        });
+        Quorum memory invalidQuorum = Quorum({strategies: new StrategyParams[](1)});
+        invalidQuorum.strategies[0] = StrategyParams({strategy: IStrategy(address(420)), multiplier: 10_001});
         address[] memory operators = new address[](2);
         operators[0] = operator1;
         operators[1] = operator2;
 
-        vm.expectRevert(
-            ECDSAStakeRegistryEventsAndErrors.InvalidQuorum.selector
-        );
+        vm.expectRevert(ECDSAStakeRegistryEventsAndErrors.InvalidQuorum.selector);
         registry.updateQuorumConfig(invalidQuorum, operators);
     }
 
-
-   
     function test_UpdateMinimumWeight() public {
         uint256 initialMinimumWeight = registry.minimumWeight();
         uint256 newMinimumWeight = 5000;
@@ -477,11 +404,11 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
         vm.expectRevert("Ownable: caller is not the owner");
         registry.updateStakeThreshold(thresholdWeight);
     }
-  
+
     function testPauseUnpause() public {
         registry.pause();
         assertTrue(registry.paused());
-        
+
         registry.unpause();
         assertFalse(registry.paused());
     }
@@ -491,4 +418,3 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
         registry.pause();
     }
 }
-

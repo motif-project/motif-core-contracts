@@ -11,22 +11,24 @@ contract VerifyMetadataUpdate is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
-        
+
         BitDSMServiceManager proxy = BitDSMServiceManager(_SERVICE_MANAGER_PROXY);
-        
+
         // Verify owner
         address owner = proxy.owner();
         console.log("Contract owner:", owner);
         console.log("Deployer:", deployer);
         require(owner == deployer, "Not owner");
-        
+
         vm.startBroadcast(deployerPrivateKey);
-        
+
         // Update metadata
-        proxy.updateAVSMetadataURI("https://raw.githubusercontent.com/BitDSM/BitDSM/refs/heads/implement-v1-ecdsa/script/uri/avs_uri.json");
-        
+        proxy.updateAVSMetadataURI(
+            "https://raw.githubusercontent.com/BitDSM/BitDSM/refs/heads/implement-v1-ecdsa/script/uri/avs_uri.json"
+        );
+
         vm.stopBroadcast();
-        
+
         console.log("Metadata URI updated successfully");
     }
-} 
+}

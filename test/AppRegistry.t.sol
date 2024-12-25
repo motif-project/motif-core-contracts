@@ -8,7 +8,11 @@ import "../src/core/AppRegistry.sol";
 contract AppRegistryTest is Test {
     event AppRegistrationStatusUpdated(address indexed app, AppRegistrationStatus status);
     event AppMetadataURIUpdated(address indexed app, string newURI);
-    enum AppRegistrationStatus { UNREGISTERED, REGISTERED }
+
+    enum AppRegistrationStatus {
+        UNREGISTERED,
+        REGISTERED
+    }
 
     AppRegistry public appRegistry;
     address public owner;
@@ -20,7 +24,7 @@ contract AppRegistryTest is Test {
         owner = address(this);
         app = vm.addr(signerPrivateKey);
 
-        appRegistry =  new AppRegistry();
+        appRegistry = new AppRegistry();
         appRegistry.initialize(owner);
     }
 
@@ -34,7 +38,7 @@ contract AppRegistryTest is Test {
 
         vm.expectEmit(true, true, false, true);
         emit AppRegistrationStatusUpdated(app, AppRegistrationStatus.REGISTERED);
-        
+
         vm.prank(app);
         appRegistry.registerApp(app, signature, salt, expiry);
 
@@ -72,7 +76,7 @@ contract AppRegistryTest is Test {
         bytes32 salt = keccak256("test_salt");
         uint256 expiry = block.timestamp - 1; // Expired
 
-        bytes32 digestHash = appRegistry.calculateAppRegistrationDigestHash(app, address(appRegistry),salt, expiry);
+        bytes32 digestHash = appRegistry.calculateAppRegistrationDigestHash(app, address(appRegistry), salt, expiry);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, digestHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
@@ -85,14 +89,14 @@ contract AppRegistryTest is Test {
         vm.prank(owner);
         appRegistry.pause();
         assertTrue(appRegistry.paused());
-        
+
         // Try to register while paused
         bytes32 salt = keccak256("test_salt");
         uint256 expiry = block.timestamp + 1 hours;
         bytes32 digestHash = appRegistry.calculateAppRegistrationDigestHash(app, address(appRegistry), salt, expiry);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, digestHash);
         bytes memory signature = abi.encodePacked(r, s, v);
-        
+
         vm.expectRevert("Pausable: paused");
         vm.prank(app);
         appRegistry.registerApp(app, signature, salt, expiry);
@@ -101,7 +105,7 @@ contract AppRegistryTest is Test {
     function testUnpause() public {
         vm.prank(owner);
         appRegistry.pause();
-        
+
         vm.prank(owner);
         appRegistry.unpause();
         assertFalse(appRegistry.paused());
@@ -109,16 +113,16 @@ contract AppRegistryTest is Test {
 
     function testCancelSalt() public {
         bytes32 salt = keccak256("test_salt");
-        
+
         vm.prank(app);
         appRegistry.cancelSalt(salt);
-        
+
         // Try to register with cancelled salt
         uint256 expiry = block.timestamp + 1 hours;
         bytes32 digestHash = appRegistry.calculateAppRegistrationDigestHash(app, address(appRegistry), salt, expiry);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, digestHash);
         bytes memory signature = abi.encodePacked(r, s, v);
-        
+
         vm.expectRevert("AppRegistry: salt already spent");
         vm.prank(app);
         appRegistry.registerApp(app, signature, salt, expiry);
@@ -127,7 +131,7 @@ contract AppRegistryTest is Test {
     function testUpdateAppMetadataURI() public {
         // First register the app
         testRegisterApp();
-        
+
         string memory newURI = "ipfs://newuri";
         vm.prank(app);
         vm.expectEmit(true, true, false, true);
@@ -144,7 +148,7 @@ contract AppRegistryTest is Test {
     function testOnlyOwnerCanUnpause() public {
         vm.prank(owner);
         appRegistry.pause();
-        
+
         vm.prank(app);
         vm.expectRevert("Ownable: caller is not the owner");
         appRegistry.unpause();

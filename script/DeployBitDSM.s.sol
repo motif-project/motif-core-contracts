@@ -1,5 +1,5 @@
- // SPDX-License-Identifier: MIT
- pragma solidity ^0.8.12;
+    // SPDX-License-Identifier: MIT
+pragma solidity ^0.8.12;
 
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
@@ -15,16 +15,21 @@ import {BitDSMRegistry} from "../src/core/BitDSMRegistry.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {Quorum, StrategyParams, IStrategy} from "@eigenlayer-middleware/src/interfaces/IECDSAStakeRegistryEventsAndErrors.sol";
+import {
+    Quorum,
+    StrategyParams,
+    IStrategy
+} from "@eigenlayer-middleware/src/interfaces/IECDSAStakeRegistryEventsAndErrors.sol";
 
 contract DeployBitDSM is Script {
     using stdJson for string;
     using Strings for *;
 
-     struct StrategyInfo {
+    struct StrategyInfo {
         string name;
         address strategy;
     }
+
     uint256 deployerPrivateKey;
     address deployer;
 
@@ -48,24 +53,23 @@ contract DeployBitDSM is Script {
         address bitDSMRegistry;
         address serviceManager;
     }
+
     BitDSMImplementationAddresses public bitDSMImplementationAddresses;
+
     function _loadEigenlayerAddresses(string memory targetEnv) internal {
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/script/eigenlayer_addresses.json");
         string memory json = vm.readFile(path);
 
         avsDirectory = IAVSDirectory(json.readAddress(string(abi.encodePacked(".", targetEnv, ".avsDirectory"))));
-        delegationManager = IDelegationManager(json.readAddress(string(abi.encodePacked(".", targetEnv, ".delegationManager"))));
-        rewardsCoordinator = IRewardsCoordinator(json.readAddress(string(abi.encodePacked(".", targetEnv, ".rewardsCoordinator"))));
-        
-        
-        StrategyInfo[] memory strategies = abi.decode(
-            vm.parseJson(json, string(abi.encodePacked(".", targetEnv, ".strategies"))),
-            (StrategyInfo[])
-        );
+        delegationManager =
+            IDelegationManager(json.readAddress(string(abi.encodePacked(".", targetEnv, ".delegationManager"))));
+        rewardsCoordinator =
+            IRewardsCoordinator(json.readAddress(string(abi.encodePacked(".", targetEnv, ".rewardsCoordinator"))));
 
-        
-        
+        StrategyInfo[] memory strategies =
+            abi.decode(vm.parseJson(json, string(abi.encodePacked(".", targetEnv, ".strategies"))), (StrategyInfo[]));
+
         StrategyParams memory strategyParam;
 
         uint96 totalMultipliers = 10_000;
@@ -78,15 +82,9 @@ contract DeployBitDSM is Script {
             if (i < strategyCount - 1) {
                 multiplier = totalMultipliers / uint96(strategyCount);
             } else {
-                multiplier =
-                    totalMultipliers -
-                    multiplier *
-                    uint96(strategyCount - 1);
+                multiplier = totalMultipliers - multiplier * uint96(strategyCount - 1);
             }
-            strategyParam = StrategyParams({
-                strategy: IStrategy(strategies[i].strategy),
-                multiplier: multiplier
-            });
+            strategyParam = StrategyParams({strategy: IStrategy(strategies[i].strategy), multiplier: multiplier});
             quorum.strategies.push(strategyParam);
         }
     }
@@ -94,10 +92,10 @@ contract DeployBitDSM is Script {
     function run(string memory network, string memory metadataUri) external {
         deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         deployer = vm.addr(deployerPrivateKey);
-        
+
         //Load Eigenlayer addresses for network
         _loadEigenlayerAddresses(network);
-        
+
         vm.startBroadcast(deployerPrivateKey);
 
         // Deploy ProxyAdmin
@@ -106,87 +104,59 @@ contract DeployBitDSM is Script {
         // Deploy AppRegistry
         AppRegistry appRegistryImpl = new AppRegistry();
         TransparentUpgradeableProxy appRegistryProxy = new TransparentUpgradeableProxy(
-            address(appRegistryImpl),
-            address(proxyAdmin),
-            abi.encodeCall(AppRegistry.initialize, (deployer))
+            address(appRegistryImpl), address(proxyAdmin), abi.encodeCall(AppRegistry.initialize, (deployer))
         );
         appRegistry = AppRegistry(address(appRegistryProxy));
 
         bitDSMImplementationAddresses.appRegistry = address(appRegistryImpl);
 
-        
         // Deploy BitDSMRegistry inherited from ECDSAStakeRegistry
         BitDSMRegistry bitDSMRegistryImpl = new BitDSMRegistry(delegationManager);
-        TransparentUpgradeableProxy bitDSMRegistryProxy = new TransparentUpgradeableProxy(
-            address(bitDSMRegistryImpl),
-            address(proxyAdmin),
-            ""
-        );
+        TransparentUpgradeableProxy bitDSMRegistryProxy =
+            new TransparentUpgradeableProxy(address(bitDSMRegistryImpl), address(proxyAdmin), "");
 
         bitDSMImplementationAddresses.bitDSMRegistry = address(bitDSMRegistryImpl);
 
         // Deploy BitDSMServiceManager
         BitDSMServiceManager serviceManagerImpl = new BitDSMServiceManager(
-            address(avsDirectory),
-            address(bitDSMRegistryProxy),
-            address(rewardsCoordinator),
-            address(delegationManager)
+            address(avsDirectory), address(bitDSMRegistryProxy), address(rewardsCoordinator), address(delegationManager)
         );
 
         bitDSMImplementationAddresses.serviceManager = address(serviceManagerImpl);
 
         // Deploy BitcoinPodManager
         BitcoinPodManager bitcoinPodManagerImpl = new BitcoinPodManager();
-        TransparentUpgradeableProxy bitcoinPodManagerProxy = new TransparentUpgradeableProxy(
-            address(bitcoinPodManagerImpl),
-            address(proxyAdmin),
-            ""
-        );
+        TransparentUpgradeableProxy bitcoinPodManagerProxy =
+            new TransparentUpgradeableProxy(address(bitcoinPodManagerImpl), address(proxyAdmin), "");
 
         bitDSMImplementationAddresses.bitcoinPodManager = address(bitcoinPodManagerImpl);
-        
+
         TransparentUpgradeableProxy serviceManagerProxy = new TransparentUpgradeableProxy(
             address(serviceManagerImpl),
             address(proxyAdmin),
-            abi.encodeWithSelector(BitDSMServiceManager.initialize.selector, deployer, address(0), address(bitcoinPodManagerProxy))
+            abi.encodeWithSelector(
+                BitDSMServiceManager.initialize.selector, deployer, address(0), address(bitcoinPodManagerProxy)
+            )
         );
         // Initialize bitDSMRegistry
-        BitDSMRegistry(address(bitDSMRegistryProxy)).initialize(
-            address(serviceManagerProxy),
-            thresholdWeight,
-            quorum
+        BitDSMRegistry(address(bitDSMRegistryProxy)).initialize(address(serviceManagerProxy), thresholdWeight, quorum);
+        // Initialize BitcoinPodManager
+        BitcoinPodManager(address(bitcoinPodManagerProxy)).initialize(
+            address(appRegistry), address(bitDSMRegistryProxy), address(serviceManagerProxy)
         );
-       // Initialize BitcoinPodManager
-       BitcoinPodManager(address(bitcoinPodManagerProxy)).initialize(
-        address(appRegistry),
-        address(bitDSMRegistryProxy),
-        address(serviceManagerProxy)
-       );
 
         bitDSMRegistry = BitDSMRegistry(address(bitDSMRegistryProxy));
         bitcoinPodManager = BitcoinPodManager(address(bitcoinPodManagerProxy));
         serviceManager = BitDSMServiceManager(address(serviceManagerProxy));
-       
-       // check the owner of the contracts
-       require(
-            bitDSMRegistry.owner() == deployer,
-            "Owner of BitDSMRegistry is not the deployer"
-        );
-        require(
-            serviceManager.owner() == deployer,
-            "Owner of BitDSMServiceManager is not the deployer"
-        );
-        require(
-            bitcoinPodManager.owner() == deployer,
-            "Owner of BitcoinPodManager is not the deployer"
-        );
-       
-       require(
-        appRegistry.owner() == deployer,
-        "Owner of AppRegistry is not the deployer"
-       );
 
-       serviceManager.updateAVSMetadataURI(metadataUri);
+        // check the owner of the contracts
+        require(bitDSMRegistry.owner() == deployer, "Owner of BitDSMRegistry is not the deployer");
+        require(serviceManager.owner() == deployer, "Owner of BitDSMServiceManager is not the deployer");
+        require(bitcoinPodManager.owner() == deployer, "Owner of BitcoinPodManager is not the deployer");
+
+        require(appRegistry.owner() == deployer, "Owner of AppRegistry is not the deployer");
+        console.log("AVS Metadata URI: ", metadataUri);
+        //serviceManager.updateAVSMetadataURI(metadataUri);
 
         vm.stopBroadcast();
 
@@ -195,25 +165,20 @@ contract DeployBitDSM is Script {
         console.log("BitDSMRegistry Proxy: ", address(bitDSMRegistry));
         console.log("BitcoinPodManager Proxy: ", address(bitcoinPodManager));
         console.log("BitDSMServiceManager Proxy: ", address(serviceManagerProxy));
-        
+
         // verify deployment
         _verifyDeployment();
-        // write Deployment contract addresses to file 
+        // write Deployment contract addresses to file
         _writeAddressesToFile();
     }
 
     function _verifyDeployment() internal view {
-        require(
-            address(serviceManager) != address(0),
-            "BitDSMServiceManager address cannot be zero"
-        );
-        require(address(appRegistry)!=address(0), "AppRegistry address cannot be zero");
-        require(address(bitDSMRegistry) !=address(0), "BitDSMregistry address cannot be zero");
-        require(address(bitcoinPodManager) !=address(0), " BitcoinPodManager address cannot be zero");
+        require(address(serviceManager) != address(0), "BitDSMServiceManager address cannot be zero");
+        require(address(appRegistry) != address(0), "AppRegistry address cannot be zero");
+        require(address(bitDSMRegistry) != address(0), "BitDSMregistry address cannot be zero");
+        require(address(bitcoinPodManager) != address(0), " BitcoinPodManager address cannot be zero");
         require(address(proxyAdmin) != address(0), "ProxyAdmin address cannot be zero");
-        require(
-            address(delegationManager) != address(0),
-            "DelegationManager address cannot be zero");
+        require(address(delegationManager) != address(0), "DelegationManager address cannot be zero");
         require(address(avsDirectory) != address(0), "AVSDirectory address cannot be zero");
     }
 

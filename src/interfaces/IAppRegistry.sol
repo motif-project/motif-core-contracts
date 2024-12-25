@@ -13,7 +13,6 @@ pragma solidity ^0.8.12;
  * - Salt cancellation for security
  * - Metadata URI updates
  */
-
 interface IAppRegistry {
     // Custom errors for validation failures
     error ZeroAddress();
@@ -27,14 +26,18 @@ interface IAppRegistry {
     error UnauthorizedCaller();
     error InvalidExpiryTime();
 
-    enum AppRegistrationStatus { UNREGISTERED, REGISTERED }
+    enum AppRegistrationStatus {
+        UNREGISTERED,
+        REGISTERED
+    }
     /**
      * @notice Emitted when registration status changes
      * @param app The address of the app
      * @param status The new registration status
      */
-     event AppRegistrationStatusUpdated(address indexed app, AppRegistrationStatus status);
-    
+
+    event AppRegistrationStatusUpdated(address indexed app, AppRegistrationStatus status);
+
     /**
      * @notice Emitted when metadata URI is updated
      * @param app The address of the app
@@ -46,7 +49,7 @@ interface IAppRegistry {
      * @param app The address of the app
      * @param salt The salt value
      */
-    event SaltCancelled(address indexed app, bytes32 indexed salt);   
+    event SaltCancelled(address indexed app, bytes32 indexed salt);
 
     /**
      * @notice Registers a new app with signature verification
@@ -63,7 +66,7 @@ interface IAppRegistry {
      * - `expiry` must not be in the past, reverts with `SignatureExpired`
      */
     function registerApp(address app, bytes memory signature, bytes32 salt, uint256 expiry) external;
-    
+
     /**
      * @notice Deregisters an app from the registry
      * @param app The address of the app to deregister
@@ -72,7 +75,7 @@ interface IAppRegistry {
      * - `app` must be registered, reverts with `AppNotRegistered`
      */
     function deregisterApp(address app) external;
-    
+
     /**
      * @notice Checks if an app is registered
      * @param app The address of the app to check
@@ -81,7 +84,7 @@ interface IAppRegistry {
      * - `app` must not be zero address, reverts with `ZeroAddress`
      */
     function isAppRegistered(address app) external view returns (bool);
-    
+
     /**
      * @notice Cancels a salt to prevent its future use
      * @param salt The salt to cancel
@@ -90,7 +93,7 @@ interface IAppRegistry {
      * - Caller must be the app that would use this salt, reverts with `UnauthorizedCaller`
      */
     function cancelSalt(bytes32 salt) external;
-    
+
     /**
      * @notice Updates the metadata URI for an app
      * @param metadataURI The new metadata URI
@@ -110,20 +113,18 @@ interface IAppRegistry {
      * @dev Requirements:
      * - All parameters must not be zero values, reverts with `ZeroAddress`
      */
-    function calculateAppRegistrationDigestHash(
-        address app,
-        address appRegistry,
-        bytes32 salt,
-        uint256 expiry
-    ) external view returns (bytes32);
-    
+    function calculateAppRegistrationDigestHash(address app, address appRegistry, bytes32 salt, uint256 expiry)
+        external
+        view
+        returns (bytes32);
+
     /**
      * @notice Checks if a salt has been cancelled
      * @dev Requirements:
      * - `app` must be registered, reverts with `AppNotRegistered`
      */
     function isSaltCancelled(address app, bytes32 salt) external view returns (bool);
-    
+
     /**
      * @notice Gets the interface version
      * @return string The semantic version string

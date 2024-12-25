@@ -7,7 +7,7 @@ pragma solidity ^0.8.12;
  * - Balance tracking
  * - Withdrawal transaction handling
  * - Pod locking/unlocking mechanisms
- * - Pod owner management 
+ * - Pod owner management
  */
 
 interface IBitcoinPod {
@@ -16,7 +16,10 @@ interface IBitcoinPod {
      * @dev Inactive: The pod is not active and cannot be used for deposits or withdrawals
      * @dev Active: The pod is active and can be used for deposits and withdrawals
      */
-    enum PodState { Inactive, Active }
+    enum PodState {
+        Inactive,
+        Active
+    }
 
     /**
      * @notice Event emitted when the pod is initialized
@@ -32,13 +35,12 @@ interface IBitcoinPod {
      * @param pod The address of the pod
      */
     event PodLocked(address indexed pod);
-    
+
     /**
      * @notice Event emitted when the pod is unlocked
      * @dev This event is emitted when the pod is unlocked
      * @param pod The address of the pod
      */
-    
     event PodUnlocked(address indexed pod);
     /**
      * @notice Event emitted when the pod value is minted
@@ -47,14 +49,13 @@ interface IBitcoinPod {
      * @param amount The amount of pod value minted
      */
     event MintPodValue(address indexed pod, uint256 amount);
-    
+
     /**
      * @notice Event emitted when the pod value is burned
      * @dev This event is emitted when the pod value is burned
      * @param pod The address of the pod
      * @param amount The amount of pod value burned
      */
-   
     event BurnPodValue(address indexed pod, uint256 amount);
     /**
      * @notice Event emitted when the pod state is changed
@@ -81,7 +82,7 @@ interface IBitcoinPod {
      * @param _newState The new state of the pod
      */
     function setPodState(PodState _newState) external;
-    
+
     /**
      * @notice Returns the Bitcoin address of the pod
      * @dev This is the address where Bitcoin deposits are received on the Bitcoin Chain
@@ -100,14 +101,14 @@ interface IBitcoinPod {
      * @return address The operator's Ethereum address
      */
     function getOperator() external view returns (address);
-     
+
     /**
      * @notice Returns the current Bitcoin balance tracked in the pod
      * @dev This balance is updated through minting and burning actions
      * @return uint256 The current Bitcoin balance
      */
     function getBitcoinBalance() external view returns (uint256);
-    
+
     /**
      * @notice Returns the signed Bitcoin withdrawal transaction stored in the pod
      * @dev This transaction is used in the process of withdrawing Bitcoin from the pod
@@ -115,42 +116,42 @@ interface IBitcoinPod {
      * @return bytes The signed Bitcoin transaction as a byte array
      */
     function getSignedBitcoinWithdrawTransaction() external view returns (bytes memory);
-     
+
     /**
      * @notice Sets the signed Bitcoin withdrawal psbt or raw transaction in the pod
      * @dev This transaction is used by the client to create and broadcast the final signed transaction on the Bitcoin Network
      * @param _signedBitcoinWithdrawTransaction The signed Bitcoin transaction as a byte array
      */
     function setSignedBitcoinWithdrawTransaction(bytes memory _signedBitcoinWithdrawTransaction) external;
-    
+
     /**
      * @notice Returns the current state of the pod
      * @dev This is used to check if the pod is active or inactive
      * @return PodState The current state of the pod
      */
     function getPodState() external view returns (PodState);
-    
+
     /**
      * @notice Locks the pod to prevent further withdrawals
      * @dev This is a security measure to prevent unauthorized withdrawals
      * @dev The pod can only be locked by the BitcoinPodManager
      */
     function lock() external;
-    
+
     /**
      * @notice Unlocks the pod to allow withdrawals
      * @dev This is used when the pod is ready to be used again
      * @dev The pod can only be unlocked by the BitcoinPodManager
      */
     function unlock() external;
-    
+
     /**
      * @notice Checks if the pod is currently locked
      * @dev This is used to ensure the pod is not locked before performing actions
      * @return bool True if the pod is locked, false otherwise
      */
     function isLocked() external view returns (bool);
-    
+
     /**
      * @notice Adds Bitcoin value to the pod
      * @dev This is used to set the Bitcoin balance in the pod
@@ -159,7 +160,7 @@ interface IBitcoinPod {
      * @param amount The amount of Bitcoin tokens to mint (must be > 0)
      */
     function mint(uint256 amount) external;
-    
+
     /**
      * @notice Removes Bitcoin token value from the pod
      * @dev This is used to clear the Bitcoin balance in the pod

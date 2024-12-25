@@ -5,7 +5,6 @@ import "@openzeppelin/contracts-upgradeable/interfaces/IERC1271Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 
-
 /**
  * @title Library of utilities for making EIP1271-compliant signature checks.
  * @author Layr Labs, Inc.

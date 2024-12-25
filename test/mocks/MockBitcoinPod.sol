@@ -59,7 +59,6 @@ contract MockBitcoinPod is IBitcoinPod {
     }
 
     function mint(uint256 amount) external {
-        
         require(msg.sender == podManager, "Only manager can mint");
         require(!locked, "Pod is locked");
         bitcoinBalance += amount;
@@ -84,5 +83,4 @@ contract MockBitcoinPod is IBitcoinPod {
     function getPodState() external view returns (PodState) {
         return podState;
     }
-    
 }

@@ -21,7 +21,6 @@ contract BitcoinPodTest is Test {
     event WithdrawTransactionSet(bytes signedTransaction);
     event PodInitialized(address indexed pod, address indexed owner, address indexed operator);
 
-    
     function setUp() public {
         owner = address(this);
         operator = address(0x1);
@@ -38,7 +37,7 @@ contract BitcoinPodTest is Test {
         pod.initialize(owner, operator, operatorBtcPubKey, bitcoinAddress);
     }
 
-    function testInitialState() public view{
+    function testInitialState() public view {
         assertEq(pod.owner(), owner);
         assertEq(pod.operator(), operator);
         assertEq(pod.manager(), manager);
@@ -48,29 +47,30 @@ contract BitcoinPodTest is Test {
         assertFalse(pod.locked());
         assertEq(pod.signedBitcoinWithdrawTransaction(), "");
     }
+
     function testInitializeZeroAddressReverts() public {
         BitcoinPod newPod = new BitcoinPod(manager);
-        
+
         vm.expectRevert("Owner cannot be the zero address");
         newPod.initialize(address(0), operator, operatorBtcPubKey, bitcoinAddress);
-        
+
         vm.expectRevert("Operator cannot be the zero address");
         newPod.initialize(owner, address(0), operatorBtcPubKey, bitcoinAddress);
     }
 
     function testInitializeEmptyValuesReverts() public {
         BitcoinPod newPod = new BitcoinPod(manager);
-        
+
         vm.expectRevert("Operator BTC public key cannot be empty");
         newPod.initialize(owner, operator, "", bitcoinAddress);
-        
+
         vm.expectRevert("Bitcoin address cannot be empty");
         newPod.initialize(owner, operator, operatorBtcPubKey, "");
     }
 
     function testMint() public {
         uint256 amount = 100;
-        
+
         // Successful mint when unlocked
         vm.prank(manager);
         vm.expectEmit(true, true, true, true);
@@ -104,7 +104,7 @@ contract BitcoinPodTest is Test {
 
     function testBurn() public {
         uint256 amount = 100;
-        
+
         // Setup: mint some balance first
         vm.prank(manager);
         pod.mint(amount);
@@ -120,32 +120,33 @@ contract BitcoinPodTest is Test {
         vm.prank(manager);
         pod.unlock();
 
-       // Try burning too much
+        // Try burning too much
         vm.prank(manager);
         vm.expectRevert("Insufficient balance");
         pod.burn(amount + 1);
 
-       // Successful burn
+        // Successful burn
         vm.prank(manager);
         vm.expectEmit(true, true, true, true);
         emit BurnPodValue(address(pod), amount);
         pod.burn(amount);
         assertEq(pod.bitcoinBalance(), 0);
     }
-     function testStateTransitions() public {
+
+    function testStateTransitions() public {
         // Test valid transitions
         vm.startPrank(manager);
-        
+
         // Active -> Inactive
         vm.expectEmit(true, true, true, true);
         emit PodStateChanged(IBitcoinPod.PodState.Active, IBitcoinPod.PodState.Inactive);
         pod.setPodState(IBitcoinPod.PodState.Inactive);
-        
+
         // Inactive -> Active
         vm.expectEmit(true, true, true, true);
         emit PodStateChanged(IBitcoinPod.PodState.Inactive, IBitcoinPod.PodState.Active);
         pod.setPodState(IBitcoinPod.PodState.Active);
-        
+
         vm.stopPrank();
     }
 
@@ -188,7 +189,7 @@ contract BitcoinPodTest is Test {
         vm.prank(manager);
         vm.expectRevert("Pod is not inactive");
         pod.setSignedBitcoinWithdrawTransaction(txn);
-        
+
         // Cannot set transaction larger than MAX_TX_SIZE
         vm.prank(manager);
         pod.setPodState(IBitcoinPod.PodState.Inactive);
@@ -203,7 +204,7 @@ contract BitcoinPodTest is Test {
         assertEq(pod.signedBitcoinWithdrawTransaction(), txn);
     }
 
-        function testGetters() public view{
+    function testGetters() public view {
         assertEq(pod.getBitcoinAddress(), bitcoinAddress);
         assertEq(pod.getOperatorBtcPubKey(), operatorBtcPubKey);
         assertEq(pod.getOperator(), operator);
@@ -211,7 +212,7 @@ contract BitcoinPodTest is Test {
         assertEq(pod.getSignedBitcoinWithdrawTransaction(), "");
     }
 
-    function testPodState() public view{
+    function testPodState() public view {
         IBitcoinPod.PodState activeState = IBitcoinPod.PodState.Active;
         IBitcoinPod.PodState state = pod.getPodState();
         // compare enum values
@@ -223,14 +224,13 @@ contract BitcoinPodTest is Test {
         vm.expectRevert("Invalid state transition");
         pod.setPodState(IBitcoinPod.PodState.Active);
     }
-    
+
     function testReentrancyProtection() public {
         // Test reentrancy protection on state-changing functions
         // Note: This is a basic test, actual reentrancy would need a malicious contract
         vm.prank(manager);
         pod.mint(100);
-        
+
         // Additional reentrancy tests with mock contracts SHOULD BE ADDED LATER
     }
-
 }

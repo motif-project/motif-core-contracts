@@ -9,11 +9,11 @@ import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.s
 
 contract DeployAppRegistry is Script {
     // Store deployed addresses in a json file
-   // string constant CONFIG_PATH = "deployments/appregistry.json";
-    
+    // string constant CONFIG_PATH = "deployments/appregistry.json";
+
     // Your existing ProxyAdmin address
-    address constant PROXY_ADMIN = 0x71e4eFEcF796bBBC562f639ADde036784F67a563;  // Replace with your ProxyAdmin address
-    
+    address constant PROXY_ADMIN = 0x71e4eFEcF796bBBC562f639ADde036784F67a563; // Replace with your ProxyAdmin address
+
     struct Addresses {
         address implementation;
         address proxy;
@@ -22,11 +22,11 @@ contract DeployAppRegistry is Script {
     function run() public returns (Addresses memory addresses) {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
-        
+
         // Verify ProxyAdmin exists and deployer has admin rights
         ProxyAdmin proxyAdmin = ProxyAdmin(PROXY_ADMIN);
         require(proxyAdmin.owner() == deployer, "Deployer is not ProxyAdmin owner");
-        
+
         vm.startBroadcast(deployerPrivateKey);
 
         // 1. Deploy Implementation
@@ -40,18 +40,12 @@ contract DeployAppRegistry is Script {
         );
 
         // 3. Deploy Proxy using existing ProxyAdmin
-        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
-            address(implementation),
-            PROXY_ADMIN,
-            initData
-        );
+        TransparentUpgradeableProxy proxy =
+            new TransparentUpgradeableProxy(address(implementation), PROXY_ADMIN, initData);
         console.log("Proxy deployed at:", address(proxy));
 
         // Store addresses
-        addresses = Addresses({
-            implementation: address(implementation),
-            proxy: address(proxy)
-        });
+        addresses = Addresses({implementation: address(implementation), proxy: address(proxy)});
 
         // Save deployment addresses
         //string memory json = vm.serializeAddress("deployments", "implementation", address(implementation));
@@ -69,16 +63,16 @@ contract UpgradeAppRegistry is Script {
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
-        
+
         // Load existing proxy address
         string memory json = vm.readFile("script/bitdsm_addresses.json");
         address PROXY_ADMIN = abi.decode(vm.parseJson(json, ".ProxyAdmin"), (address));
         address proxy = abi.decode(vm.parseJson(json, ".AppRegistryProxy"), (address));
-        
+
         // Verify ProxyAdmin ownership
         ProxyAdmin proxyAdmin = ProxyAdmin(PROXY_ADMIN);
         require(proxyAdmin.owner() == deployer, "Deployer is not ProxyAdmin owner");
-        
+
         vm.startBroadcast(deployerPrivateKey);
 
         // 1. Deploy new implementation
@@ -86,11 +80,8 @@ contract UpgradeAppRegistry is Script {
         console.log("New implementation deployed at:", address(newImplementation));
 
         // 2. Upgrade proxy to new implementation
-        proxyAdmin.upgrade(
-            TransparentUpgradeableProxy(payable(proxy)),
-            address(newImplementation)
-        );
-        
+        proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(proxy)), address(newImplementation));
+
         // Update json with new implementation
         //json = vm.serializeAddress("deployments", "implementation", address(newImplementation));
         //vm.writeJson(json, "deployments/appregistry.json");
@@ -104,18 +95,15 @@ contract VerifyAppRegistry is Script {
     //address constant PROXY_ADMIN = 0x71e4efecf796bbbc562f639adde036784f67a563;  // Same ProxyAdmin address
 
     function run() public view {
-      
-         
         string memory json = vm.readFile("script/bitdsm_addresses.json");
-         address PROXY_ADMIN = abi.decode(vm.parseJson(json, ".ProxyAdmin"), (address));
+        address PROXY_ADMIN = abi.decode(vm.parseJson(json, ".ProxyAdmin"), (address));
         address proxy = abi.decode(vm.parseJson(json, ".AppRegistryProxy"), (address));
-        
+
         ProxyAdmin proxyAdmin = ProxyAdmin(PROXY_ADMIN);
         address currentImpl = proxyAdmin.getProxyImplementation(TransparentUpgradeableProxy(payable(proxy)));
-        
+
         console.log("Current implementation:", currentImpl);
         console.log("Proxy address:", proxy);
         console.log("ProxyAdmin:", PROXY_ADMIN);
     }
 }
-
