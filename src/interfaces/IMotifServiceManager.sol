@@ -4,8 +4,8 @@ pragma solidity ^0.8.12;
 import "@eigenlayer-middleware/src/interfaces/IServiceManager.sol";
 
 /**
- * @title BitDSM Service Manager Interface
- * @notice Interface for managing Bitcoin DSM (Decentralized Service Manager) operations
+ * @title Motif Service Manager Interface
+ * @notice Interface for managing Motif operations
  * @dev THIS CONTRACT IS NOT AUDITED.
  * @dev Extends IServiceManager from EigenLayer middleware
  *
@@ -24,7 +24,7 @@ import "@eigenlayer-middleware/src/interfaces/IServiceManager.sol";
  * - BitcoinPod: Individual Bitcoin custody pods
  * - EigenLayer: For staking and operator management
  */
-interface IBitDSMServiceManager is IServiceManager {
+interface IMotifServiceManager is IServiceManager {
     // Custom errors
 
     /// @dev Thrown when caller is not the authorized operator for a pod

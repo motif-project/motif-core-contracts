@@ -2,7 +2,7 @@
 pragma solidity ^0.8.12;
 
 import "forge-std/Script.sol";
-import "../src/core/BitDSMRegistry.sol";
+import "../src/core/MotifStakeRegistry.sol";
 import {IDelegationManager} from "@eigenlayer/src/contracts/interfaces/IDelegationManager.sol";
 import {
     Quorum,
@@ -10,7 +10,7 @@ import {
     IStrategy
 } from "@eigenlayer-middleware/src/interfaces/IECDSAStakeRegistryEventsAndErrors.sol";
 
-contract DeployBitDSMRegistry is Script {
+contract DeployMotifStakeRegistry is Script {
     uint256 _deployerPrivateKey;
     address _delegationManagerAddress;
     address _serviceManagerAddress;
@@ -34,12 +34,12 @@ contract DeployBitDSMRegistry is Script {
         // initialize the delegataion manager
         IDelegationManager _delegationManager = IDelegationManager(_delegationManagerAddress);
 
-        BitDSMRegistry registry = new BitDSMRegistry(_delegationManager);
+        MotifStakeRegistry registry = new MotifStakeRegistry(_delegationManager);
         // initialize the registry
         registry.initialize(_serviceManagerAddress, 0, _quorum);
 
         vm.stopBroadcast();
 
-        console.log("BitDSMRegistry deployed at:", address(registry));
+        console.log("MotifStakeRegistry deployed at:", address(registry));
     }
 }

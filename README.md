@@ -88,7 +88,7 @@ $ anvil
 ### Deploy
 
 ```shell
-$ forge script script/deploy.s.sol:DeployScript --fork-url http://localhost:8545 --broadcast --private-key $PRIVATE_KEY
+$ forge script script/DeployMotif.s.sol:DeployMotif --fork-url http://localhost:8545 --broadcast --private-key $PRIVATE_KEY
 ```
 
 ### To-Do
@@ -99,12 +99,12 @@ EigenLayer AVS deployment and operator registration.
 $ forge --help
 $ anvil --help
 $ cast --help
-```
+``` 
 
 ## Deployment
 
 ```shell
-$ forge script script/DeployBitDSM.s.sol:DeployBitDSM --fork-url http://localhost:8545 --broadcast --private-key $PRIVATE_KEY
+$ forge script script/DeployMotif.s.sol:DeployMotif --fork-url http://localhost:8545 --broadcast --private-key $PRIVATE_KEY
 ```
 
 ## Existing Holesky Testnet Deployment
@@ -112,10 +112,10 @@ $ forge script script/DeployBitDSM.s.sol:DeployBitDSM --fork-url http://localhos
 | Contract Name                      | Holesky Address                                                                                                               |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | ProxyAdmin                         | [0xc8a51779c4d6365dd5fc4779a6518fc1598d1654](https://holesky.etherscan.io/address/0xc8a51779c4d6365dd5fc4779a6518fc1598d1654) |
-| BitDSMRegistry                     | [0xba3c98e3d60871f92d1c8890a13207fe46534641](https://holesky.etherscan.io/address/0xba3c98e3d60871f92d1c8890a13207fe46534641) |
-| BitDSMRegistryImplementation       | [0x37e04ac839c85e472310ff592b83e3f15e9920ec](https://holesky.etherscan.io/address/0x37e04ac839c85e472310ff592b83e3f15e9920ec) |
-| BitDSmServiceManager               | [0x7238717bcf57fa8dcfece86f827e05a1ad4bf6b1](https://holesky.etherscan.io/address/0x7238717bcf57fa8dcfece86f827e05a1ad4bf6b1) |
-| BitDSMServiceManagerImplementation | [0xfadca4a8774deaf364fa92d62054430ff76b3e97](https://holesky.etherscan.io/address/0xfadca4a8774deaf364fa92d62054430ff76b3e97) |
+| MotifStakeRegistry                 | [0xba3c98e3d60871f92d1c8890a13207fe46534641](https://holesky.etherscan.io/address/0xba3c98e3d60871f92d1c8890a13207fe46534641) |
+| MotifStakeRegistryImplementation   | [0x37e04ac839c85e472310ff592b83e3f15e9920ec](https://holesky.etherscan.io/address/0x37e04ac839c85e472310ff592b83e3f15e9920ec) |
+| MotifServiceManager                | [0x7238717bcf57fa8dcfece86f827e05a1ad4bf6b1](https://holesky.etherscan.io/address/0x7238717bcf57fa8dcfece86f827e05a1ad4bf6b1) |
+| MotifServiceManagerImplementation  | [0xfadca4a8774deaf364fa92d62054430ff76b3e97](https://holesky.etherscan.io/address/0xfadca4a8774deaf364fa92d62054430ff76b3e97) |
 | AppRegistry                        | [0x91677dd787cd9056c5805cbb74e271fd83d88e61](https://holesky.etherscan.io/address/0x91677dd787cd9056c5805cbb74e271fd83d88e61) |
 | AppRegistryImplementation          | [0x25dd3fc30f59f240cfccfd893340f9cb9e365d75](https://holesky.etherscan.io/address/0x25dd3fc30f59f240cfccfd893340f9cb9e365d75) |
 | BitcoinPodManager                  | [0x96eae70bc21925dde05602c87c4483579205b1f6](https://holesky.etherscan.io/address/0x96eae70bc21925dde05602c87c4483579205b1f6) |

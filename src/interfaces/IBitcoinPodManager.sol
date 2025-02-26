@@ -80,10 +80,10 @@ interface IBitcoinPodManager {
     function getTotalTVL() external view returns (uint256);
 
     /**
-     * @notice Gets the address of the BitDSM Service Manager contract
-     * @return address The address of the BitDSM Service Manager contract
+     * @notice Gets the address of the Motif Service Manager contract
+     * @return address The address of the Motif Service Manager contract
      */
-    function getBitDSMServiceManager() external view returns (address);
+    function getMotifServiceManager() external view returns (address);
 
     /**
      * @notice Gets the address of the App Registry contract
@@ -92,10 +92,10 @@ interface IBitcoinPodManager {
     function getAppRegistry() external view returns (address);
 
     /**
-     * @notice Gets the address of the BitDSM Registry contract
-     * @return The address of the BitDSM Registry
+     * @notice Gets the address of the Motif Stake Registry contract
+     * @return The address of the Motif Stake Registry
      */
-    function getBitDSMRegistry() external view returns (address);
+    function getMotifStakeRegistry() external view returns (address);
 
     /**
      * @notice Gets the total number of pods created
@@ -193,7 +193,7 @@ interface IBitcoinPodManager {
      * @return address The address of the created pod
      * @dev Checks that:
      * - User doesn't already have a pod
-     * - Operator is registered in BitDSM Registry
+     * - Operator is registered in Motif Stake  Registry
      */
 
     function createPod(address operator, string memory btcAddress, bytes calldata script) external returns (address);
@@ -238,7 +238,7 @@ interface IBitcoinPodManager {
      * @param pod The address of the pod
      * @param transactionId The Bitcoin transaction ID
      * @param amount The amount deposited
-     * @dev can only be requested by the BitDSM Service Manager
+     * @dev can only be requested by the Motif Service Manager
      * @dev Updates the pod balance
      */
     function confirmBitcoinDeposit(address pod, bytes32 transactionId, uint256 amount) external;

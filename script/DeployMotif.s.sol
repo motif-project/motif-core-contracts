@@ -7,10 +7,10 @@ import "forge-std/console.sol";
 import {IAVSDirectory} from "@eigenlayer/src/contracts/interfaces/IAVSDirectory.sol";
 import {IDelegationManager} from "@eigenlayer/src/contracts/interfaces/IDelegationManager.sol";
 import {IRewardsCoordinator} from "@eigenlayer/src/contracts/interfaces/IRewardsCoordinator.sol";
-import {BitDSMServiceManager} from "../src/core/BitDSMServiceManager.sol";
+import {MotifServiceManager} from "../src/core/MotifServiceManager.sol";
 import {AppRegistry} from "../src/core/AppRegistry.sol";
 import {BitcoinPodManager} from "../src/core/BitcoinPodManager.sol";
-import {BitDSMRegistry} from "../src/core/BitDSMRegistry.sol";
+import {MotifStakeRegistry} from "../src/core/MotifStakeRegistry.sol";
 
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -21,7 +21,7 @@ import {
     IStrategy
 } from "@eigenlayer-middleware/src/interfaces/IECDSAStakeRegistryEventsAndErrors.sol";
 
-contract DeployBitDSM is Script {
+contract DeployMotif is Script {
     using stdJson for string;
     using Strings for *;
 
@@ -43,22 +43,22 @@ contract DeployBitDSM is Script {
 
     AppRegistry public appRegistry;
     BitcoinPodManager public bitcoinPodManager;
-    BitDSMRegistry public bitDSMRegistry;
-    BitDSMServiceManager public serviceManager;
+    MotifStakeRegistry public motifStakeRegistry;
+    MotifServiceManager public serviceManager;
 
-    struct BitDSMImplementationAddresses {
+    struct MotifImplementationAddresses {
         address proxyAdmin;
         address appRegistry;
         address bitcoinPodManager;
-        address bitDSMRegistry;
+        address motifStakeRegistry;
         address serviceManager;
     }
 
-    BitDSMImplementationAddresses public bitDSMImplementationAddresses;
+    MotifImplementationAddresses public motifImplementationAddresses;
 
     function _loadEigenlayerAddresses(string memory targetEnv) internal {
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, "/script/eigenlayer_addresses.json");
+        string memory path = string.concat(root, "/deployments/eigenlayer_addresses.json");
         string memory json = vm.readFile(path);
 
         avsDirectory = IAVSDirectory(json.readAddress(string(abi.encodePacked(".", targetEnv, ".avsDirectory"))));
@@ -108,50 +108,50 @@ contract DeployBitDSM is Script {
         );
         appRegistry = AppRegistry(address(appRegistryProxy));
 
-        bitDSMImplementationAddresses.appRegistry = address(appRegistryImpl);
+        motifImplementationAddresses.appRegistry = address(appRegistryImpl);
 
         // Deploy BitDSMRegistry inherited from ECDSAStakeRegistry
-        BitDSMRegistry bitDSMRegistryImpl = new BitDSMRegistry(delegationManager);
-        TransparentUpgradeableProxy bitDSMRegistryProxy =
-            new TransparentUpgradeableProxy(address(bitDSMRegistryImpl), address(proxyAdmin), "");
+        MotifStakeRegistry motifStakeRegistryImpl = new MotifStakeRegistry(delegationManager);
+        TransparentUpgradeableProxy motifStakeRegistryProxy =
+            new TransparentUpgradeableProxy(address(motifStakeRegistryImpl), address(proxyAdmin), "");
 
-        bitDSMImplementationAddresses.bitDSMRegistry = address(bitDSMRegistryImpl);
+        motifImplementationAddresses.motifStakeRegistry = address(motifStakeRegistryImpl);
 
         // Deploy BitDSMServiceManager
-        BitDSMServiceManager serviceManagerImpl = new BitDSMServiceManager(
-            address(avsDirectory), address(bitDSMRegistryProxy), address(rewardsCoordinator), address(delegationManager)
+        MotifServiceManager serviceManagerImpl = new MotifServiceManager(
+            address(avsDirectory), address(motifStakeRegistryProxy), address(rewardsCoordinator), address(delegationManager)
         );
 
-        bitDSMImplementationAddresses.serviceManager = address(serviceManagerImpl);
+        motifImplementationAddresses.serviceManager = address(serviceManagerImpl);
 
         // Deploy BitcoinPodManager
         BitcoinPodManager bitcoinPodManagerImpl = new BitcoinPodManager();
         TransparentUpgradeableProxy bitcoinPodManagerProxy =
             new TransparentUpgradeableProxy(address(bitcoinPodManagerImpl), address(proxyAdmin), "");
 
-        bitDSMImplementationAddresses.bitcoinPodManager = address(bitcoinPodManagerImpl);
+        motifImplementationAddresses.bitcoinPodManager = address(bitcoinPodManagerImpl);
 
         TransparentUpgradeableProxy serviceManagerProxy = new TransparentUpgradeableProxy(
             address(serviceManagerImpl),
             address(proxyAdmin),
             abi.encodeWithSelector(
-                BitDSMServiceManager.initialize.selector, deployer, address(0), address(bitcoinPodManagerProxy)
+                MotifServiceManager.initialize.selector, deployer, address(0), address(bitcoinPodManagerProxy)
             )
         );
-        // Initialize bitDSMRegistry
-        BitDSMRegistry(address(bitDSMRegistryProxy)).initialize(address(serviceManagerProxy), thresholdWeight, quorum);
+        // Initialize motifStakeRegistry
+        MotifStakeRegistry(address(motifStakeRegistryProxy)).initialize(address(serviceManagerProxy), thresholdWeight, quorum);
         // Initialize BitcoinPodManager
         BitcoinPodManager(address(bitcoinPodManagerProxy)).initialize(
-            address(appRegistry), address(bitDSMRegistryProxy), address(serviceManagerProxy)
+            address(appRegistry), address(motifStakeRegistryProxy), address(serviceManagerProxy)
         );
 
-        bitDSMRegistry = BitDSMRegistry(address(bitDSMRegistryProxy));
+        motifStakeRegistry = MotifStakeRegistry(address(motifStakeRegistryProxy));
         bitcoinPodManager = BitcoinPodManager(address(bitcoinPodManagerProxy));
-        serviceManager = BitDSMServiceManager(address(serviceManagerProxy));
+        serviceManager = MotifServiceManager(address(serviceManagerProxy));
 
         // check the owner of the contracts
-        require(bitDSMRegistry.owner() == deployer, "Owner of BitDSMRegistry is not the deployer");
-        require(serviceManager.owner() == deployer, "Owner of BitDSMServiceManager is not the deployer");
+        require(motifStakeRegistry.owner() == deployer, "Owner of MotifStakeRegistry is not the deployer");
+        require(serviceManager.owner() == deployer, "Owner of MotifServiceManager is not the deployer");
         require(bitcoinPodManager.owner() == deployer, "Owner of BitcoinPodManager is not the deployer");
 
         require(appRegistry.owner() == deployer, "Owner of AppRegistry is not the deployer");
@@ -162,9 +162,9 @@ contract DeployBitDSM is Script {
 
         console.log("ProxyAdmin: ", address(proxyAdmin));
         console.log("AppRegistry Proxy: ", address(appRegistry));
-        console.log("BitDSMRegistry Proxy: ", address(bitDSMRegistry));
+        console.log("MotifStakeRegistry Proxy: ", address(motifStakeRegistry));
         console.log("BitcoinPodManager Proxy: ", address(bitcoinPodManager));
-        console.log("BitDSMServiceManager Proxy: ", address(serviceManagerProxy));
+        console.log("MotifServiceManager Proxy: ", address(serviceManagerProxy));
 
         // verify deployment
         _verifyDeployment();
@@ -173,9 +173,9 @@ contract DeployBitDSM is Script {
     }
 
     function _verifyDeployment() internal view {
-        require(address(serviceManager) != address(0), "BitDSMServiceManager address cannot be zero");
+        require(address(serviceManager) != address(0), "MotifServiceManager address cannot be zero");
         require(address(appRegistry) != address(0), "AppRegistry address cannot be zero");
-        require(address(bitDSMRegistry) != address(0), "BitDSMregistry address cannot be zero");
+        require(address(motifStakeRegistry) != address(0), "MotifStakeRegistry address cannot be zero");
         require(address(bitcoinPodManager) != address(0), " BitcoinPodManager address cannot be zero");
         require(address(proxyAdmin) != address(0), "ProxyAdmin address cannot be zero");
         require(address(delegationManager) != address(0), "DelegationManager address cannot be zero");
@@ -184,7 +184,7 @@ contract DeployBitDSM is Script {
 
     function _writeAddressesToFile() internal {
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, "/script/bitdsm_addresses.json");
+        string memory path = string.concat(root, "/deployments/motif_addresses.json");
 
         string memory json = string.concat(
             "{",
@@ -195,25 +195,25 @@ contract DeployBitDSM is Script {
             address(appRegistry).toHexString(),
             "\",",
             "\"AppRegistryImplementation\": \"",
-            bitDSMImplementationAddresses.appRegistry.toHexString(),
+            motifImplementationAddresses.appRegistry.toHexString(),
             "\",",
             "\"BitcoinPodManagerProxy\": \"",
             address(bitcoinPodManager).toHexString(),
             "\",",
             "\"BitcoinPodManagerImplementation\": \"",
-            bitDSMImplementationAddresses.bitcoinPodManager.toHexString(),
+            motifImplementationAddresses.bitcoinPodManager.toHexString(),
             "\",",
-            "\"BitDSMRegistryProxy\": \"",
-            address(bitDSMRegistry).toHexString(),
+            "\"MotifStakeRegistryProxy\": \"",
+            address(motifStakeRegistry).toHexString(),
             "\",",
-            "\"BitDSMRegistryImplementation\": \"",
-            bitDSMImplementationAddresses.bitDSMRegistry.toHexString(),
+            "\"MotifStakeRegistryImplementation\": \"",
+            motifImplementationAddresses.motifStakeRegistry.toHexString(),
             "\",",
-            "\"BitDSMServiceManagerProxy\": \"",
+            "\"MotifServiceManagerProxy\": \"",
             address(serviceManager).toHexString(),
             "\",",
-            "\"BitDSMServiceManagerImplementation\": \"",
-            bitDSMImplementationAddresses.serviceManager.toHexString(),
+            "\"MotifServiceManagerImplementation\": \"",
+            motifImplementationAddresses.serviceManager.toHexString(),
             "\"",
             "}"
         );

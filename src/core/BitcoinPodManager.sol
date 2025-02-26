@@ -7,28 +7,28 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "../interfaces/IBitcoinPodManager.sol";
 import "../interfaces/IAppRegistry.sol";
-import "../interfaces/IBitDSMRegistry.sol";
+import "../interfaces/IMotifStakeRegistry.sol";
 import "../interfaces/IBitcoinPod.sol";
 import "../storage/BitcoinPodManagerStorage.sol";
 import "./BitcoinPod.sol";
-import "../interfaces/IBitDSMServiceManager.sol";
+import "../interfaces/IMotifServiceManager.sol";
 import "forge-std/console.sol";
 import "../libraries/BitcoinUtils.sol";
 /**
  * @title BitcoinPodManager
- * @notice Manages Bitcoin custody pods for Clients in the BitDSM protocol
+ * @notice Manages Bitcoin custody pods for Clients in the MOTIF protocol
  * @dev Handles pod creation, deposits, withdrawals and pod state management
  *
  * The BitcoinPodManager contract provides the following key functionality:
  * - Pod creation and management
  * - Bitcoin deposit and withdrawal request handling for each pod
- * - Integration with BitDSM Service Manager for operator actions
+ * - Integration with Motif Service Manager for operator actions
  * - Pod delegation to apps
  *
  *
  * Key components:
  * - BitcoinPod: Individual custody pods that hold Bitcoin
- * - BitDSMServiceManager: Manages operator tasks and verification
+ * - MotifServiceManager: Manages operator tasks and verification
  * - AppRegistry: Verifies and delegates to/from registered applications
  *
  * Security features:
@@ -70,13 +70,13 @@ contract BitcoinPodManager is
     ReentrancyGuardUpgradeable,
     IBitcoinPodManager
 {
-    /* @dev Ensures that the function is only callable by the `BitDSMServiceManager` contract.
-     * This is used to restrict deposit and withdrawal verification to the `BitDSMServiceManager` contract
+    /* @dev Ensures that the function is only callable by the `MotifServiceManager` contract.
+     * This is used to restrict deposit and withdrawal verification to the `MotifServiceManager` contract
      */
-    modifier onlyBitDSMServiceManager() {
+    modifier onlyMotifServiceManager() {
         require(
-            msg.sender == _bitDSMServiceManager,
-            "BitcoinPodManager.onlyBitDSMServiceManager: caller is not the BitDSMServiceManager"
+            msg.sender == _motifServiceManager,
+            "BitcoinPodManager.onlyMotifServiceManager: caller is not the MotifServiceManager"
         );
         _;
     }
@@ -93,12 +93,12 @@ contract BitcoinPodManager is
     //// Initialization ////////
     /////////////////////////////
     /**
-     * @notice Initialization function to set the app registry, bitDSM registry, and bitDSMServiceManager
+     * @notice Initialization function to set the App Registry, Motif Stake Registry, and Motif Service Manager
      * @param appRegistry_ Address of the App Registry contract
-     * @param bitDSMRegistry_ Address of the BitDSM Registry contract
-     * @param bitDSMServiceManager_ Address of the BitDSMServiceManager contract
+     * @param motifStakeRegistry_ Address of the Motif Stake Registry contract
+     * @param motifServiceManager_ Address of the Motif Service Manager contract
      */
-    function initialize(address appRegistry_, address bitDSMRegistry_, address bitDSMServiceManager_)
+    function initialize(address appRegistry_, address motifStakeRegistry_, address motifServiceManager_)
         public
         initializer
     {
@@ -106,8 +106,8 @@ contract BitcoinPodManager is
         __Pausable_init();
         __ReentrancyGuard_init();
         _appRegistry = appRegistry_;
-        _bitDSMRegistry = bitDSMRegistry_;
-        _bitDSMServiceManager = bitDSMServiceManager_;
+        _motifStakeRegistry = motifStakeRegistry_;
+        _motifServiceManager = motifServiceManager_;
         _totalTVL = 0;
         _totalPods = 0;
     }
@@ -130,8 +130,9 @@ contract BitcoinPodManager is
         return _totalTVL;
     }
 
-    function getBitDSMServiceManager() external view override returns (address) {
-        return _bitDSMServiceManager;
+    // @inheritdoc IBitcoinPodManager
+    function getMotifServiceManager() external view override returns (address) {
+        return _motifServiceManager;
     }
 
     // @inheritdoc IBitcoinPodManager
@@ -140,8 +141,8 @@ contract BitcoinPodManager is
     }
 
     // @inheritdoc IBitcoinPodManager
-    function getBitDSMRegistry() external view override returns (address) {
-        return _bitDSMRegistry;
+    function getMotifStakeRegistry() external view override returns (address) {
+        return _motifStakeRegistry;
     }
 
     // @inheritdoc IBitcoinPodManager
@@ -179,9 +180,9 @@ contract BitcoinPodManager is
         returns (address)
     {
         require(_userToPod[msg.sender] == address(0), "User already has a pod");
-        require(IBitDSMRegistry(_bitDSMRegistry).isOperatorBtcKeyRegistered(operator), "Invalid operator");
+        require(IMotifStakeRegistry(_motifStakeRegistry).isOperatorBtcKeyRegistered(operator), "Invalid operator");
 
-        bytes memory operatorBtcPubKey = IBitDSMRegistry(_bitDSMRegistry).getOperatorBtcPublicKey(operator);
+        bytes memory operatorBtcPubKey = IMotifStakeRegistry(_motifStakeRegistry).getOperatorBtcPublicKey(operator);
         // console.logBytes(operatorBtcPubKey);
         // verify the btc address
         if (!_verifyBTCAddress(btcAddress, script, operatorBtcPubKey)) {
@@ -332,7 +333,7 @@ contract BitcoinPodManager is
     /**
      * @inheritdoc IBitcoinPodManager
      * @dev Checks:
-     * - Caller must be BitDSM Service Manager
+     * - Caller must be Motif Service Manager
      * - Transaction ID must match pending deposit request
      * @dev Updates pod state:
      * - Adds Bitcoin token value to pod
@@ -344,7 +345,7 @@ contract BitcoinPodManager is
         external
         whenNotPaused
         nonReentrant
-        onlyBitDSMServiceManager
+        onlyMotifServiceManager
     {
         // get the deposit index
         BitcoinDepositRequest memory depositRequest = _podToBitcoinDepositRequest[pod];
@@ -448,12 +449,12 @@ contract BitcoinPodManager is
      * 3. Unsetting the pod's entire Bitcoin balance
      * 4. Emitting withdrawal event
      * 5. Cleaning up withdrawal request state
-     * @dev Can only be called by the BitDSM Service Manager
+     * @dev Can only be called by the Motif Service Manager
      * @dev Checks:
      * - Pod must have an active withdrawal request
      */
 
-    function withdrawBitcoinAsTokens(address pod) external whenNotPaused nonReentrant onlyBitDSMServiceManager {
+    function withdrawBitcoinAsTokens(address pod) external whenNotPaused nonReentrant onlyMotifServiceManager {
         // get the withdrawal address
         string memory withdrawAddress = _podToWithdrawalAddress[pod];
         // check if the pod has a withdrawal request
@@ -476,7 +477,7 @@ contract BitcoinPodManager is
     /**
      * @inheritdoc IBitcoinPodManager
      * @dev Checks:
-     * - Caller must be BitDSM Service Manager
+     * - Caller must be Motif Service Manager
      * @dev Updates pod state:
      * - Stores the signed Bitcoin withdrawal transaction
      * @param pod The address of the pod
@@ -486,7 +487,7 @@ contract BitcoinPodManager is
     function setSignedBitcoinWithdrawTransactionPod(address pod, bytes memory signedBitcoinWithdrawTransaction)
         external
         whenNotPaused
-        onlyBitDSMServiceManager
+        onlyMotifServiceManager
     {
         IBitcoinPod(pod).setSignedBitcoinWithdrawTransaction(signedBitcoinWithdrawTransaction);
     }
