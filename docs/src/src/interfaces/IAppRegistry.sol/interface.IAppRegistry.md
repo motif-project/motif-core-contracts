@@ -1,5 +1,5 @@
 # IAppRegistry
-[Git Source](https://github.com/hammadtq/BitDSM/blob/03e12ea1c014ff832e71dc625d1580cea6d3bafe/src/interfaces/IAppRegistry.sol)
+[Git Source](https://github.com/motif-project/motif-core-contracts/blob/2d5ca1db3b104b68bfb25c8e4e92709909e5d1c7/src/interfaces/IAppRegistry.sol)
 
 Interface for managing application registrations in the BitDSM protocol
 
@@ -17,6 +17,14 @@ The IAppRegistry interface provides the following key functionality:
 
 Registers a new app with signature verification
 
+*Requirements:
+- `app` must not be zero address, reverts with `ZeroAddress`
+- `app` must not be already registered, reverts with `AppAlreadyRegistered`
+- `signature` must be valid EIP-712 signature, reverts with `InvalidSignature`
+- `salt` must not be previously used, reverts with `SaltAlreadyUsed`
+- `expiry` must be at least MIN_EXPIRY_DURATION from current time, reverts with `InvalidExpiryTime`
+- `expiry` must not be in the past, reverts with `SignatureExpired`*
+
 
 ```solidity
 function registerApp(address app, bytes memory signature, bytes32 salt, uint256 expiry) external;
@@ -26,7 +34,7 @@ function registerApp(address app, bytes memory signature, bytes32 salt, uint256 
 |Name|Type|Description|
 |----|----|-----------|
 |`app`|`address`|The address of the app to register|
-|`signature`|`bytes`|The signature proving ownership|
+|`signature`|`bytes`|The EIP-712 signature proving ownership|
 |`salt`|`bytes32`|Unique value to prevent replay attacks|
 |`expiry`|`uint256`|Timestamp when signature expires|
 
@@ -34,6 +42,10 @@ function registerApp(address app, bytes memory signature, bytes32 salt, uint256 
 ### deregisterApp
 
 Deregisters an app from the registry
+
+*Requirements:
+- Caller must be contract owner, reverts with `UnauthorizedCaller`
+- `app` must be registered, reverts with `AppNotRegistered`*
 
 
 ```solidity
@@ -49,6 +61,9 @@ function deregisterApp(address app) external;
 ### isAppRegistered
 
 Checks if an app is registered
+
+*Requirements:
+- `app` must not be zero address, reverts with `ZeroAddress`*
 
 
 ```solidity
@@ -69,7 +84,11 @@ function isAppRegistered(address app) external view returns (bool);
 
 ### cancelSalt
 
-Cancels a salt for an app
+Cancels a salt to prevent its future use
+
+*Requirements:
+- Salt must not be already cancelled, reverts with `SaltAlreadyUsed`
+- Caller must be the app that would use this salt, reverts with `UnauthorizedCaller`*
 
 
 ```solidity
@@ -86,6 +105,11 @@ function cancelSalt(bytes32 salt) external;
 
 Updates the metadata URI for an app
 
+*Requirements:
+- Caller must be a registered app, reverts with `AppNotRegistered`
+- URI length must not exceed MAX_METADATA_URI_LENGTH, reverts with `InvalidMetadataURILength`
+- URI must not be empty, reverts with `InvalidMetadataURILength`*
+
 
 ```solidity
 function updateAppMetadataURI(string calldata metadataURI) external;
@@ -101,6 +125,9 @@ function updateAppMetadataURI(string calldata metadataURI) external;
 
 Calculates the EIP-712 digest hash for app registration
 
+*Requirements:
+- All parameters must not be zero values, reverts with `ZeroAddress`*
+
 
 ```solidity
 function calculateAppRegistrationDigestHash(address app, address appRegistry, bytes32 salt, uint256 expiry)
@@ -113,7 +140,7 @@ function calculateAppRegistrationDigestHash(address app, address appRegistry, by
 |Name|Type|Description|
 |----|----|-----------|
 |`app`|`address`|The address of the app|
-|`appRegistry`|`address`||
+|`appRegistry`|`address`|The address of this registry contract|
 |`salt`|`bytes32`|The salt value|
 |`expiry`|`uint256`|The expiration timestamp|
 
@@ -121,7 +148,49 @@ function calculateAppRegistrationDigestHash(address app, address appRegistry, by
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`bytes32`|bytes32 The calculated digest hash|
+|`<none>`|`bytes32`|bytes32 The calculated EIP-712 digest hash|
+
+
+### isSaltCancelled
+
+Checks if a salt has been cancelled
+
+*Requirements:
+- `app` must be registered, reverts with `AppNotRegistered`*
+
+
+```solidity
+function isSaltCancelled(address app, bytes32 salt) external view returns (bool);
+```
+
+### getVersion
+
+Gets the interface version
+
+
+```solidity
+function getVersion() external pure returns (string memory);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`string`|string The semantic version string|
+
+
+### getTotalAppsRegistered
+
+Gets the total number of apps registered
+
+
+```solidity
+function getTotalAppsRegistered() external view returns (uint256);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|uint256 The total number of apps registered|
 
 
 ## Events
@@ -155,10 +224,84 @@ event AppMetadataURIUpdated(address indexed app, string metadataURI);
 |`app`|`address`|The address of the app|
 |`metadataURI`|`string`|The new metadata URI|
 
+### SaltCancelled
+Emitted when a salt is cancelled
+
+
+```solidity
+event SaltCancelled(address indexed app, bytes32 indexed salt);
+```
+
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`app`|`address`|The address of the app|
+|`salt`|`bytes32`|The salt value|
+
+## Errors
+### ZeroAddress
+
+```solidity
+error ZeroAddress();
+```
+
+### InvalidSignature
+
+```solidity
+error InvalidSignature();
+```
+
+### SignatureExpired
+
+```solidity
+error SignatureExpired();
+```
+
+### SignatureNotYetValid
+
+```solidity
+error SignatureNotYetValid();
+```
+
+### SaltAlreadySpent
+
+```solidity
+error SaltAlreadySpent();
+```
+
+### AppAlreadyRegistered
+
+```solidity
+error AppAlreadyRegistered();
+```
+
+### AppNotRegistered
+
+```solidity
+error AppNotRegistered();
+```
+
+### InvalidMetadataURILength
+
+```solidity
+error InvalidMetadataURILength();
+```
+
+### UnauthorizedCaller
+
+```solidity
+error UnauthorizedCaller();
+```
+
+### InvalidExpiryTime
+
+```solidity
+error InvalidExpiryTime();
+```
+
 ## Enums
 ### AppRegistrationStatus
-Enum representing the registration status of an app
-
 
 ```solidity
 enum AppRegistrationStatus {

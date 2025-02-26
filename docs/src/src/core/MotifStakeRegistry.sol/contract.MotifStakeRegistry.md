@@ -1,33 +1,52 @@
-# IBitDSMRegistry
-[Git Source](https://github.com/hammadtq/BitDSM/blob/03e12ea1c014ff832e71dc625d1580cea6d3bafe/src/interfaces/IBitDSMRegistry.sol)
+# MotifStakeRegistry
+[Git Source](https://github.com/motif-project/motif-core-contracts/blob/2d5ca1db3b104b68bfb25c8e4e92709909e5d1c7/src/core/MotifStakeRegistry.sol)
 
-Registry contract for Bitcoin DSM (Decentralized Service Manager) operators
+**Inherits:**
+[ECDSAStakeRegistry](/src/libraries/ECDSAStakeRegistry.sol/abstract.ECDSAStakeRegistry.md), PausableUpgradeable, [IMotifStakeRegistry](/src/interfaces/IMotifStakeRegistry.sol/interface.IMotifStakeRegistry.md)
 
-*THIS CONTRACT IS NOT AUDITED.*
 
-*Extends ECDSAStakeRegistry to handle Bitcoin-specific operator registration
-This contract manages:
-- Registration of operators with their Bitcoin public keys
-- Integration with EigenLayer's delegation system
-- Operator deregistration
-Key features:
-- Secure storage of operator Bitcoin public keys
-- Validation of Bitcoin public key format
-- Integration with EigenLayer staking
-The contract works in conjunction with:
-- BitDSMServiceManager: For operator task management
-- BitcoinPodManager: For pod operations
-- EigenLayer: For staking and delegation*
+## State Variables
+### _operatorToBtcPublicKey
+mapping of operator addresses to their BTC public keys
+
+
+```solidity
+mapping(address => bytes) private _operatorToBtcPublicKey;
+```
 
 
 ## Functions
+### constructor
+
+constructor for the MotifStakeRegistry
+
+
+```solidity
+constructor(IDelegationManager _delegationManager) ECDSAStakeRegistry(_delegationManager);
+```
+
+### initialize
+
+Initializes the MotifStakeRegistry contract
+
+
+```solidity
+function initialize(address _serviceManager, uint256 _thresholdWeight, Quorum memory _quorum) external initializer;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_serviceManager`|`address`|The address of the service manager|
+|`_thresholdWeight`|`uint256`|The threshold weight in basis points|
+|`_quorum`|`Quorum`|The quorum struct containing the details of the quorum thresholds|
+
+
 ### registerOperatorWithSignature
 
 Registers a new operator using a provided signature and signing key
 
 *caller must be the operator itself*
-
-*Only interface for registering an operator with BitDSM AVS*
 
 
 ```solidity
@@ -35,7 +54,7 @@ function registerOperatorWithSignature(
     ISignatureUtils.SignatureWithSaltAndExpiry memory _operatorSignature,
     address _signingKey,
     bytes calldata btcPublicKey
-) external;
+) external override;
 ```
 **Parameters**
 
@@ -50,11 +69,11 @@ function registerOperatorWithSignature(
 
 Deregisters an operator and removes their Bitcoin public key
 
-*Only interface for deregistering an operator with BitDSM AVS*
+*Only interface for deregistering an operator with Motif AVS*
 
 
 ```solidity
-function deregisterOperator() external;
+function deregisterOperator() external override(ECDSAStakeRegistry, IMotifStakeRegistry);
 ```
 
 ### isOperatorBtcKeyRegistered
@@ -99,33 +118,21 @@ function getOperatorBtcPublicKey(address operator) external view returns (bytes 
 |`<none>`|`bytes`|The Bitcoin public key associated with the operator|
 
 
-## Events
-### OperatorBtcKeyRegistered
-Emitted when an operator registers their Bitcoin public key
+### pause
+
+pause the contract
 
 
 ```solidity
-event OperatorBtcKeyRegistered(address indexed operator, bytes btcPublicKey);
+function pause() external onlyOwner;
 ```
 
-**Parameters**
+### unpause
 
-|Name|Type|Description|
-|----|----|-----------|
-|`operator`|`address`|Address of the operator registering their key|
-|`btcPublicKey`|`bytes`|The Bitcoin public key being registered|
-
-### OperatorBtckeyDeregistered
-Emitted when an operator deregisters and removes their Bitcoin public key
+unpause the contract
 
 
 ```solidity
-event OperatorBtckeyDeregistered(address indexed operator);
+function unpause() external onlyOwner;
 ```
-
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`operator`|`address`|Address of the operator deregistering|
 

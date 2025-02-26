@@ -1,10 +1,10 @@
-# IBitDSMServiceManager
-[Git Source](https://github.com/hammadtq/BitDSM/blob/03e12ea1c014ff832e71dc625d1580cea6d3bafe/src/interfaces/IBitDSMServiceManager.sol)
+# IMotifServiceManager
+[Git Source](https://github.com/motif-project/motif-core-contracts/blob/2d5ca1db3b104b68bfb25c8e4e92709909e5d1c7/src/interfaces/IMotifServiceManager.sol)
 
 **Inherits:**
 IServiceManager
 
-Interface for managing Bitcoin DSM (Decentralized Service Manager) operations
+Interface for managing Motif operations
 
 *THIS CONTRACT IS NOT AUDITED.*
 
@@ -24,6 +24,36 @@ The contract works in conjunction with:
 
 
 ## Functions
+### setBitcoinPodManager
+
+Set the BitcoinPodManager contract address
+
+
+```solidity
+function setBitcoinPodManager(address bitcoinPodManager) external;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`bitcoinPodManager`|`address`|The address of the BitcoinPodManager contract|
+
+
+### getBitcoinPodManager
+
+Get the BitcoinPodManager contract address
+
+
+```solidity
+function getBitcoinPodManager() external view returns (address);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`address`|The address of the BitcoinPodManager contract|
+
+
 ### confirmDeposit
 
 Confirms a Bitcoin chain deposit by verifying operator signature and updating pod state
@@ -141,4 +171,149 @@ event BitcoinWithdrawalTransactionSigned(address indexed pod, address indexed op
 |`pod`|`address`|Address of the Bitcoin pod processing the withdrawal|
 |`operator`|`address`|Address of the operator signing the transaction|
 |`amount`|`uint256`|Amount of Bitcoin being withdrawn|
+
+## Errors
+### UnauthorizedPodOperator
+*Thrown when caller is not the authorized operator for a pod*
+
+
+```solidity
+error UnauthorizedPodOperator(address caller, address pod);
+```
+
+### InvalidOperatorSignature
+*Thrown when a signature verification fails*
+
+
+```solidity
+error InvalidOperatorSignature(address operator);
+```
+
+### InvalidKeyLength
+*Thrown when a key length is invalid*
+
+
+```solidity
+error InvalidKeyLength(uint256 length);
+```
+
+### InvalidOperatorBTCKey
+*Thrown when a operator BTC key is invalid*
+
+
+```solidity
+error InvalidOperatorBTCKey(bytes operatorKey, bytes operatorBtcPubKey);
+```
+
+### NoWithdrawalRequestToConfirm
+*Thrown when there is no withdrawal request to confirm*
+
+
+```solidity
+error NoWithdrawalRequestToConfirm(address pod);
+```
+
+### NoWithdrawalRequestToProcess
+*Thrown when there is no withdrawal request to process*
+
+
+```solidity
+error NoWithdrawalRequestToProcess(address pod);
+```
+
+### WithdrawalRequestAlreadyExists
+*Thrown when a withdrawal request already exists*
+
+
+```solidity
+error WithdrawalRequestAlreadyExists(address pod);
+```
+
+### NoDepositRequestToConfirm
+*Thrown when there is no deposit request to confirm*
+
+
+```solidity
+error NoDepositRequestToConfirm(address pod);
+```
+
+### InvalidPSBTOutputs
+*Thrown when PSBT outputs are invalid*
+
+
+```solidity
+error InvalidPSBTOutputs();
+```
+
+### ZeroBitcoinPodManagerAddress
+*Thrown when the BitcoinPodManager address is zero*
+
+
+```solidity
+error ZeroBitcoinPodManagerAddress();
+```
+
+### InvalidSignatureLength
+*Thrown when the signature length is invalid*
+
+
+```solidity
+error InvalidSignatureLength(uint256 length);
+```
+
+### EmptyWithdrawAddress
+*Thrown when the withdraw address is empty*
+
+
+```solidity
+error EmptyWithdrawAddress();
+```
+
+### ZeroWithdrawAmount
+*Thrown when the withdraw amount is zero*
+
+
+```solidity
+error ZeroWithdrawAmount();
+```
+
+### TooManyPSBTOutputs
+*Thrown when there are too many PSBT outputs*
+
+
+```solidity
+error TooManyPSBTOutputs(uint256 length);
+```
+
+### NoPSBTOutputs
+*Thrown when there are no PSBT outputs*
+
+
+```solidity
+error NoPSBTOutputs();
+```
+
+### EmptyPSBTTransaction
+*Thrown when the PSBT transaction is empty*
+
+
+```solidity
+error EmptyPSBTTransaction();
+```
+
+### InvalidPSBTTransaction
+*Thrown when the PSBT transaction is too long or too short*
+
+
+```solidity
+error InvalidPSBTTransaction(uint256 length);
+```
+
+### InvalidTransaction
+*Thrown when the BTC transaction is invalid*
+
+
+```solidity
+error InvalidTransaction(uint256 length);
+```
 

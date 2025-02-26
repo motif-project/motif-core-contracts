@@ -1,8 +1,8 @@
 # BitcoinPod
-[Git Source](https://github.com/hammadtq/BitDSM/blob/03e12ea1c014ff832e71dc625d1580cea6d3bafe/src/core/BitcoinPod.sol)
+[Git Source](https://github.com/motif-project/motif-core-contracts/blob/2d5ca1db3b104b68bfb25c8e4e92709909e5d1c7/src/core/BitcoinPod.sol)
 
 **Inherits:**
-[IBitcoinPod](/src/interfaces/IBitcoinPod.sol/interface.IBitcoinPod.md), OwnableUpgradeable
+[IBitcoinPod](/src/interfaces/IBitcoinPod.sol/interface.IBitcoinPod.md), OwnableUpgradeable, ReentrancyGuardUpgradeable
 
 A contract that represents a Bitcoin custody pod managed by an Client and an Operator
 
@@ -15,9 +15,13 @@ Key features:
 - Supports locking mechanism for security
 - Manages withdrawal transaction storage
 Security considerations:
-- Only the designated operator can perform sensitive actions
 - Pod can be locked to prevent unauthorized withdrawals
 - Manager contract has privileged access for administrative functions*
+
+*Security assumptions:
+- All state-modifying functions are only callable by the PodManager contract
+- The PodManager is trusted and implements necessary security measures
+- No direct external calls are made from these functions*
 
 
 ## State Variables
@@ -38,7 +42,7 @@ bytes public operatorBtcPubKey;
 ### bitcoinAddress
 
 ```solidity
-bytes public bitcoinAddress;
+string public bitcoinAddress;
 ```
 
 
@@ -70,21 +74,29 @@ bytes public signedBitcoinWithdrawTransaction;
 ```
 
 
-## Functions
-### onlyOperator
+### podState
 
-Modifier to ensure only the designated operator can perform an action
+```solidity
+PodState public podState;
+```
+
+
+### MAX_TX_SIZE
+
+```solidity
+uint256 private constant MAX_TX_SIZE = 1024 * 100;
+```
+
+
+## Functions
+### onlyActive
+
+Modifier to ensure the pod is active before execution
 
 
 ```solidity
-modifier onlyOperator(address _operator);
+modifier onlyActive();
 ```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`_operator`|`address`|Address of the operator to check against|
-
 
 ### lockedPod
 
@@ -127,11 +139,11 @@ Initializes a new Bitcoin pod with the specified parameters
 - Transfers ownership to _owner
 - Sets operator and their BTC public key
 - Sets the pod's Bitcoin address
-- Initializes pod as unlocked*
+- Initializes pod as unlocked and active*
 
 
 ```solidity
-function initialize(address _owner, address _operator, bytes memory _operatorBtcPubKey, bytes memory _btcAddress)
+function initialize(address _owner, address _operator, bytes memory _operatorBtcPubKey, string memory _btcAddress)
     external
     initializer;
 ```
@@ -142,14 +154,14 @@ function initialize(address _owner, address _operator, bytes memory _operatorBtc
 |`_owner`|`address`|Address that will own this pod contract|
 |`_operator`|`address`|Address of the designated operator who can perform sensitive actions|
 |`_operatorBtcPubKey`|`bytes`|Bitcoin public key of the operator for multisig address generation|
-|`_btcAddress`|`bytes`|Multisig Bitcoin address associated with this pod|
+|`_btcAddress`|`string`|Multisig Bitcoin address associated with this pod|
 
 
 ### getBitcoinAddress
 
 
 ```solidity
-function getBitcoinAddress() external view returns (bytes memory);
+function getBitcoinAddress() external view returns (string memory);
 ```
 
 ### getOperatorBtcPubKey
@@ -184,14 +196,24 @@ function getSignedBitcoinWithdrawTransaction() external view returns (bytes memo
 
 
 ```solidity
-function setSignedBitcoinWithdrawTransaction(bytes memory _signedBitcoinWithdrawTransaction) external onlyManager;
+function setSignedBitcoinWithdrawTransaction(bytes memory _signedBitcoinWithdrawTransaction)
+    external
+    onlyManager
+    nonReentrant;
+```
+
+### setPodState
+
+
+```solidity
+function setPodState(PodState _newState) external onlyManager nonReentrant;
 ```
 
 ### lock
 
 
 ```solidity
-function lock() external onlyManager lockedPod;
+function lock() external onlyManager onlyActive lockedPod;
 ```
 
 ### unlock
@@ -212,13 +234,27 @@ function isLocked() external view returns (bool);
 
 
 ```solidity
-function mint(address _operator, uint256 amount) external onlyManager onlyOperator(_operator) lockedPod;
+function mint(uint256 amount) external onlyManager onlyActive lockedPod nonReentrant;
 ```
 
 ### burn
 
 
 ```solidity
-function burn(address _operator, uint256 amount) external onlyManager onlyOperator(_operator) lockedPod;
+function burn(uint256 amount) external onlyManager lockedPod nonReentrant;
+```
+
+### getPodState
+
+
+```solidity
+function getPodState() external view returns (PodState);
+```
+
+### _isValidStateTransition
+
+
+```solidity
+function _isValidStateTransition(PodState _from, PodState _to) internal pure returns (bool);
 ```
 
