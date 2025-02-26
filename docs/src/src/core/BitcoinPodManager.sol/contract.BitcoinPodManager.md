@@ -1,20 +1,20 @@
 # BitcoinPodManager
-[Git Source](https://github.com/hammadtq/BitDSM/blob/03e12ea1c014ff832e71dc625d1580cea6d3bafe/src/core/BitcoinPodManager.sol)
+[Git Source](https://github.com/motif-project/motif-core-contracts/blob/2d5ca1db3b104b68bfb25c8e4e92709909e5d1c7/src/core/BitcoinPodManager.sol)
 
 **Inherits:**
 [BitcoinPodManagerStorage](/src/storage/BitcoinPodManagerStorage.sol/contract.BitcoinPodManagerStorage.md), Initializable, OwnableUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable, [IBitcoinPodManager](/src/interfaces/IBitcoinPodManager.sol/interface.IBitcoinPodManager.md)
 
-Manages Bitcoin custody pods for Clients in the BitDSM protocol
+Manages Bitcoin custody pods for Clients in the MOTIF protocol
 
 *Handles pod creation, deposits, withdrawals and pod state management
 The BitcoinPodManager contract provides the following key functionality:
 - Pod creation and management
 - Bitcoin deposit and withdrawal request handling for each pod
-- Integration with BitDSM Service Manager for operator actions
+- Integration with Motif Service Manager for operator actions
 - Pod delegation to apps
 Key components:
 - BitcoinPod: Individual custody pods that hold Bitcoin
-- BitDSMServiceManager: Manages operator tasks and verification
+- MotifServiceManager: Manages operator tasks and verification
 - AppRegistry: Verifies and delegates to/from registered applications
 Security features:
 - Reentrancy protection on state-modifying functions
@@ -44,11 +44,11 @@ Key flows:
 
 
 ## Functions
-### onlyBitDSMServiceManager
+### onlyMotifServiceManager
 
 
 ```solidity
-modifier onlyBitDSMServiceManager();
+modifier onlyMotifServiceManager();
 ```
 
 ### onlyPodOwner
@@ -60,19 +60,21 @@ modifier onlyPodOwner(address pod);
 
 ### initialize
 
-Initialization function to set the app registry, bitDSM registry, and bitDSMServiceManager
+Initialization function to set the App Registry, Motif Stake Registry, and Motif Service Manager
 
 
 ```solidity
-function initialize(address appRegistry_, address bitDSMRegistry_, address bitDSMServiceManager_) public initializer;
+function initialize(address appRegistry_, address motifStakeRegistry_, address motifServiceManager_)
+    public
+    initializer;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`appRegistry_`|`address`|Address of the App Registry contract|
-|`bitDSMRegistry_`|`address`|Address of the BitDSM Registry contract|
-|`bitDSMServiceManager_`|`address`|Address of the BitDSMServiceManager contract|
+|`motifStakeRegistry_`|`address`|Address of the Motif Stake Registry contract|
+|`motifServiceManager_`|`address`|Address of the Motif Service Manager contract|
 
 
 ### getUserPod
@@ -96,11 +98,11 @@ function getPodApp(address pod) external view override returns (address);
 function getTotalTVL() external view override returns (uint256);
 ```
 
-### getBitDSMServiceManager
+### getMotifServiceManager
 
 
 ```solidity
-function getBitDSMServiceManager() external view override returns (address);
+function getMotifServiceManager() external view override returns (address);
 ```
 
 ### getAppRegistry
@@ -110,11 +112,11 @@ function getBitDSMServiceManager() external view override returns (address);
 function getAppRegistry() external view override returns (address);
 ```
 
-### getBitDSMRegistry
+### getMotifStakeRegistry
 
 
 ```solidity
-function getBitDSMRegistry() external view override returns (address);
+function getMotifStakeRegistry() external view override returns (address);
 ```
 
 ### getBitcoinDepositRequest
@@ -128,7 +130,21 @@ function getBitcoinDepositRequest(address pod) external view override returns (B
 
 
 ```solidity
-function getBitcoinWithdrawalAddress(address pod) external view override returns (bytes memory);
+function getBitcoinWithdrawalAddress(address pod) external view override returns (string memory);
+```
+
+### getTotalPods
+
+
+```solidity
+function getTotalPods() external view override returns (uint256);
+```
+
+### hasPendingBitcoinDepositRequest
+
+
+```solidity
+function hasPendingBitcoinDepositRequest(address pod) external view override returns (bool);
 ```
 
 ### createPod
@@ -147,14 +163,19 @@ Creates a new pod
 
 
 ```solidity
-function createPod(address operator, bytes memory btcAddress) external whenNotPaused nonReentrant returns (address);
+function createPod(address operator, string calldata btcAddress, bytes calldata script)
+    external
+    whenNotPaused
+    nonReentrant
+    returns (address);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
 |`operator`|`address`|The address of the operator creating the pod|
-|`btcAddress`|`bytes`|The Bitcoin address for the pod|
+|`btcAddress`|`string`|The Bitcoin address for the pod|
+|`script`|`bytes`||
 
 **Returns**
 
@@ -326,7 +347,7 @@ function verifyBitcoinDepositRequest(address pod, bytes32 transactionId, uint256
 Confirms the deposit on Bitcoin Network
 
 *Checks:
-- Caller must be BitDSM Service Manager
+- Caller must be Motif Service Manager
 - Transaction ID must match pending deposit request*
 
 *Updates pod state:
@@ -341,7 +362,7 @@ function confirmBitcoinDeposit(address pod, bytes32 transactionId, uint256 amoun
     external
     whenNotPaused
     nonReentrant
-    onlyBitDSMServiceManager;
+    onlyMotifServiceManager;
 ```
 **Parameters**
 
@@ -376,7 +397,7 @@ Initiates a Bitcoin withdrawal request using PSBT (Partially Signed Bitcoin Tran
 
 
 ```solidity
-function withdrawBitcoinPSBTRequest(address pod, bytes memory withdrawAddress)
+function withdrawBitcoinPSBTRequest(address pod, string memory withdrawAddress)
     external
     whenNotPaused
     nonReentrant
@@ -387,7 +408,7 @@ function withdrawBitcoinPSBTRequest(address pod, bytes memory withdrawAddress)
 |Name|Type|Description|
 |----|----|-----------|
 |`pod`|`address`|The address of the pod where the withdrawal is requested|
-|`withdrawAddress`|`bytes`|The Bitcoin address where funds should be withdrawn to|
+|`withdrawAddress`|`string`|The Bitcoin address where funds should be withdrawn to|
 
 
 ### withdrawBitcoinCompleteTxRequest
@@ -418,7 +439,7 @@ Initiates a Bitcoin withdrawal request from the pod owner
 function withdrawBitcoinCompleteTxRequest(
     address pod,
     bytes memory preSignedWithdrawTransaction,
-    bytes memory withdrawAddress
+    string memory withdrawAddress
 ) external whenNotPaused nonReentrant onlyPodOwner(pod);
 ```
 **Parameters**
@@ -427,7 +448,7 @@ function withdrawBitcoinCompleteTxRequest(
 |----|----|-----------|
 |`pod`|`address`|The address of the pod where the withdrawal is requested|
 |`preSignedWithdrawTransaction`|`bytes`|The pre-signed Bitcoin transaction sent from the pod owner|
-|`withdrawAddress`|`bytes`|The Bitcoin address where funds should be withdrawn to|
+|`withdrawAddress`|`string`|The Bitcoin address where funds should be withdrawn to|
 
 
 ### withdrawBitcoinAsTokens
@@ -440,14 +461,14 @@ Withdraws Bitcoin as tokens from a pod
 4. Emitting withdrawal event
 5. Cleaning up withdrawal request state*
 
-*Can only be called by the BitDSM Service Manager*
+*Can only be called by the Motif Service Manager*
 
 *Checks:
 - Pod must have an active withdrawal request*
 
 
 ```solidity
-function withdrawBitcoinAsTokens(address pod) external whenNotPaused nonReentrant onlyBitDSMServiceManager;
+function withdrawBitcoinAsTokens(address pod) external whenNotPaused nonReentrant onlyMotifServiceManager;
 ```
 
 ### setSignedBitcoinWithdrawTransactionPod
@@ -455,7 +476,7 @@ function withdrawBitcoinAsTokens(address pod) external whenNotPaused nonReentran
 Sets the signed Bitcoin withdrawal transaction in the pod
 
 *Checks:
-- Caller must be BitDSM Service Manager*
+- Caller must be Motif Service Manager*
 
 *Updates pod state:
 - Stores the signed Bitcoin withdrawal transaction*
@@ -465,7 +486,7 @@ Sets the signed Bitcoin withdrawal transaction in the pod
 function setSignedBitcoinWithdrawTransactionPod(address pod, bytes memory signedBitcoinWithdrawTransaction)
     external
     whenNotPaused
-    onlyBitDSMServiceManager;
+    onlyMotifServiceManager;
 ```
 **Parameters**
 
@@ -473,6 +494,33 @@ function setSignedBitcoinWithdrawTransactionPod(address pod, bytes memory signed
 |----|----|-----------|
 |`pod`|`address`|The address of the pod|
 |`signedBitcoinWithdrawTransaction`|`bytes`|The signed Bitcoin PSBT or raw transaction|
+
+
+### cancelWithdrawalRequest
+
+
+```solidity
+function cancelWithdrawalRequest(address pod) external whenNotPaused onlyPodOwner(pod);
+```
+
+### _verifyBTCAddress
+
+Verify if a BTC address is correct for a given scriptPubKey
+
+
+```solidity
+function _verifyBTCAddress(string calldata btcAddress, bytes calldata script, bytes memory operatorBtcPubKey)
+    internal
+    pure
+    returns (bool);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`btcAddress`|`string`|The bech32 BTC address to verify|
+|`script`|`bytes`|The scriptPubKey to verify against|
+|`operatorBtcPubKey`|`bytes`|The operator's BTC public key|
 
 
 ### pause

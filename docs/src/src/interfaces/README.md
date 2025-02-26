@@ -2,7 +2,7 @@
 
 # Contents
 - [IAppRegistry](IAppRegistry.sol/interface.IAppRegistry.md)
-- [IBitDSMRegistry](IBitDSMRegistry.sol/interface.IBitDSMRegistry.md)
-- [IBitDSMServiceManager](IBitDSMServiceManager.sol/interface.IBitDSMServiceManager.md)
 - [IBitcoinPod](IBitcoinPod.sol/interface.IBitcoinPod.md)
 - [IBitcoinPodManager](IBitcoinPodManager.sol/interface.IBitcoinPodManager.md)
+- [IMotifServiceManager](IMotifServiceManager.sol/interface.IMotifServiceManager.md)
+- [IMotifStakeRegistry](IMotifStakeRegistry.sol/interface.IMotifStakeRegistry.md)

@@ -1,6 +1,6 @@
 # MOTIF : The first in-kind Bitcoin staking DTP on Ethereum
 
-![Motif Cover](../../assets/og_image.png)
+![Motif Cover](./assets/og_image.png)
 
 **Motif is the first in-kind Bitcoin staking DTP issuance protocol on Ethereum.**
 

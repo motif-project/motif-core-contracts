@@ -1,5 +1,5 @@
 # BitcoinPodManagerStorage
-[Git Source](https://github.com/hammadtq/BitDSM/blob/03e12ea1c014ff832e71dc625d1580cea6d3bafe/src/storage/BitcoinPodManagerStorage.sol)
+[Git Source](https://github.com/motif-project/motif-core-contracts/blob/2d5ca1db3b104b68bfb25c8e4e92709909e5d1c7/src/storage/BitcoinPodManagerStorage.sol)
 
 Storage contract for BitcoinPodManager
 
@@ -7,6 +7,15 @@ Storage contract for BitcoinPodManager
 
 
 ## State Variables
+### _totalPods
+Total number of pods created
+
+
+```solidity
+uint256 internal _totalPods;
+```
+
+
 ### _totalTVL
 Total Value Locked in all pods (in satoshis)
 
@@ -16,12 +25,12 @@ uint256 internal _totalTVL;
 ```
 
 
-### _bitDSMServiceManager
-Address of the BitDSMService manager contract
+### _motifServiceManager
+Address of the Motif Service manager contract
 
 
 ```solidity
-address internal _bitDSMServiceManager;
+address internal _motifServiceManager;
 ```
 
 
@@ -34,12 +43,12 @@ address internal _appRegistry;
 ```
 
 
-### _bitDSMRegistry
-Address of the BitDSM Registry contract
+### _motifStakeRegistry
+Address of the Motif Stake Registry contract
 
 
 ```solidity
-address internal _bitDSMRegistry;
+address internal _motifStakeRegistry;
 ```
 
 
@@ -75,15 +84,11 @@ Mapping of pod address to the withdrawal address
 
 
 ```solidity
-mapping(address => bytes) internal _podToWithdrawalAddress;
+mapping(address => string) internal _podToWithdrawalAddress;
 ```
 
 
 ### __gap
-Struct to store Bitcoin deposit request details
-
-*Tracks the status and details of pending Bitcoin deposit requests*
-
 *Gap for future storage variables*
 
 

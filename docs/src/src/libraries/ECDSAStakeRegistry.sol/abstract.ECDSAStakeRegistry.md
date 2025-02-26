@@ -1,5 +1,5 @@
 # ECDSAStakeRegistry
-[Git Source](https://github.com/hammadtq/BitDSM/blob/03e12ea1c014ff832e71dc625d1580cea6d3bafe/src/libraries/ECDSAStakeRegistry.sol)
+[Git Source](https://github.com/motif-project/motif-core-contracts/blob/2d5ca1db3b104b68bfb25c8e4e92709909e5d1c7/src/libraries/ECDSAStakeRegistry.sol)
 
 **Inherits:**
 OwnableUpgradeable, IERC1271Upgradeable, ECDSAStakeRegistryStorage

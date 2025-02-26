@@ -1,10 +1,10 @@
 # AppRegistry
-[Git Source](https://github.com/hammadtq/BitDSM/blob/03e12ea1c014ff832e71dc625d1580cea6d3bafe/src/core/AppRegistry.sol)
+[Git Source](https://github.com/motif-project/motif-core-contracts/blob/2d5ca1db3b104b68bfb25c8e4e92709909e5d1c7/src/core/AppRegistry.sol)
 
 **Inherits:**
 [IAppRegistry](/src/interfaces/IAppRegistry.sol/interface.IAppRegistry.md), Initializable, OwnableUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable
 
-A registry contract for managing application registrations in the BitDSM protocol
+A registry contract for managing application registrations in the MOTIF protocol
 
 *Implements EIP-1271 signature verification for secure app registration
 The AppRegistry contract provides the following key functionality:
@@ -20,6 +20,13 @@ Security features:
 
 
 ## State Variables
+### totalAppsRegistered
+
+```solidity
+uint256 public totalAppsRegistered;
+```
+
+
 ### appStatus
 
 ```solidity
@@ -53,7 +60,25 @@ bytes32 private constant DOMAIN_TYPEHASH =
 ### DOMAIN_SEPARATOR
 
 ```solidity
-bytes32 private immutable DOMAIN_SEPARATOR;
+bytes32 private DOMAIN_SEPARATOR;
+```
+
+
+### MAX_METADATA_URI_LENGTH
+Maximum length for metadata URI
+
+
+```solidity
+uint256 constant MAX_METADATA_URI_LENGTH = 2048;
+```
+
+
+### MIN_EXPIRY_DURATION
+Minimum time before expiry (1 hour)
+
+
+```solidity
+uint256 constant MIN_EXPIRY_DURATION = 5 minutes;
 ```
 
 
@@ -111,7 +136,7 @@ function registerApp(address app, bytes memory signature, bytes32 salt, uint256 
 |Name|Type|Description|
 |----|----|-----------|
 |`app`|`address`|The address of the app to register|
-|`signature`|`bytes`|The signature proving ownership|
+|`signature`|`bytes`|The EIP-712 signature proving ownership|
 |`salt`|`bytes32`|Unique value to prevent replay attacks|
 |`expiry`|`uint256`|Timestamp when signature expires|
 
@@ -140,6 +165,9 @@ function deregisterApp(address app) external override onlyOwner whenNotPaused;
 
 Checks if an app is registered
 
+*Requirements:
+- `app` must not be zero address, reverts with `ZeroAddress`*
+
 
 ```solidity
 function isAppRegistered(address app) external view override returns (bool);
@@ -159,7 +187,7 @@ function isAppRegistered(address app) external view override returns (bool);
 
 ### cancelSalt
 
-Cancels a salt for an app
+Cancels a salt to prevent its future use
 
 *This function performs the following:
 - Validates that the salt has not been spent
@@ -230,5 +258,32 @@ Unpauses the contract
 
 ```solidity
 function unpause() external onlyOwner;
+```
+
+### isSaltCancelled
+
+Checks if a salt has been cancelled
+
+*This function performs the following:
+- Validates that the app is registered
+- Emits an AppMetadataURIUpdated event*
+
+
+```solidity
+function isSaltCancelled(address app, bytes32 salt) external view override returns (bool);
+```
+
+### getVersion
+
+
+```solidity
+function getVersion() external pure override returns (string memory);
+```
+
+### getTotalAppsRegistered
+
+
+```solidity
+function getTotalAppsRegistered() external view returns (uint256);
 ```
 
