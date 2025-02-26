@@ -4,8 +4,8 @@ pragma solidity ^0.8.12;
 import "forge-std/Test.sol";
 import "../src/core/BitcoinPodManager.sol";
 import "../src/core/BitcoinPod.sol";
-import "../src/interfaces/IBitDSMServiceManager.sol";
-import {BitDSMRegistry} from "../src/core/BitDSMRegistry.sol";
+import "../src/interfaces/IMotifServiceManager.sol";
+import {MotifStakeRegistry} from "../src/core/MotifStakeRegistry.sol";
 import {IDelegationManager} from "@eigenlayer/src/contracts/interfaces/IDelegationManager.sol";
 import {ISignatureUtils} from "@eigenlayer/src/contracts/interfaces/ISignatureUtils.sol";
 import {IStrategy} from "@eigenlayer/src/contracts/interfaces/IStrategy.sol";
@@ -120,7 +120,7 @@ contract MockAppRegistry {
 }
 
 contract BitcoinPodManagerTest is Test {
-    BitDSMRegistry public bitDSMRegistry;
+    MotifStakeRegistry public motifStakeRegistry;
     BitcoinPodManager public podManager;
     MockAppRegistry public appRegistry;
     address public testOwner;
@@ -151,13 +151,13 @@ contract BitcoinPodManagerTest is Test {
 
     function setUp() public {
         delegationManager = new MockDelegationManager();
-        bitDSMRegistry = new BitDSMRegistry(IDelegationManager(address(delegationManager)));
+        motifStakeRegistry = new MotifStakeRegistry(IDelegationManager(address(delegationManager)));
         appRegistry = new MockAppRegistry();
         testOwner = address(this);
         appRegistry.initialize(testOwner);
         podManager = new BitcoinPodManager();
         serviceManager = _deployProxiedServiceManager();
-        podManager.initialize(address(appRegistry), address(bitDSMRegistry), address(serviceManager));
+        podManager.initialize(address(appRegistry), address(motifStakeRegistry), address(serviceManager));
         //  serviceManager = new MockServiceManager(address(podManager));
 
         // initialize strategy
@@ -165,7 +165,7 @@ contract BitcoinPodManagerTest is Test {
         Quorum memory quorum = Quorum({strategies: new StrategyParams[](1)});
         quorum.strategies[0] = StrategyParams({strategy: mockStrategy, multiplier: 10_000});
 
-        bitDSMRegistry.initialize(address(serviceManager), 100, quorum);
+        motifStakeRegistry.initialize(address(serviceManager), 100, quorum);
         operator = address(0x1);
         user = address(0x2);
         operatorBtcPubKey = hex"03cb23542f698ed1e617a623429b585d98fb91e44839949db4126b2a0d5a7320b0";
@@ -178,7 +178,7 @@ contract BitcoinPodManagerTest is Test {
         // First, register the operator
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
 
         // Now, create a pod as the user
         vm.prank(user);
@@ -204,7 +204,7 @@ contract BitcoinPodManagerTest is Test {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         // Register operator
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
 
         // Create first pod
         vm.prank(user);
@@ -220,7 +220,7 @@ contract BitcoinPodManagerTest is Test {
         // Register operator and create pod
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
         vm.prank(user);
         podManager.createPod(operator, userBtcAddress, lockScript);
 
@@ -246,7 +246,7 @@ contract BitcoinPodManagerTest is Test {
         // Register operator and create pod
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
         vm.prank(user);
         podManager.createPod(operator, userBtcAddress, lockScript);
 
@@ -272,7 +272,7 @@ contract BitcoinPodManagerTest is Test {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
 
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
 
         // Create pod as user
         vm.prank(user);
@@ -289,7 +289,7 @@ contract BitcoinPodManagerTest is Test {
         // Setup
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+                motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
 
         vm.prank(user);
         address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
@@ -326,7 +326,7 @@ contract BitcoinPodManagerTest is Test {
         // Setup
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
 
         vm.prank(user);
         address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
@@ -345,7 +345,7 @@ contract BitcoinPodManagerTest is Test {
         // Setup pod with balance
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
 
         vm.prank(user);
         address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
@@ -384,7 +384,7 @@ contract BitcoinPodManagerTest is Test {
         // Setup
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
 
         vm.prank(user);
         address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
@@ -426,7 +426,7 @@ contract BitcoinPodManagerTest is Test {
         // Setup
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
 
         vm.prank(user);
         address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
@@ -453,7 +453,7 @@ contract BitcoinPodManagerTest is Test {
         // Setup
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
 
         vm.prank(user);
         address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
@@ -486,7 +486,7 @@ contract BitcoinPodManagerTest is Test {
         // Try to create pod while paused
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
 
         vm.prank(user);
         vm.expectRevert("Pausable: paused");
@@ -504,7 +504,7 @@ contract BitcoinPodManagerTest is Test {
         // Setup pod with balance
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
 
         vm.prank(user);
         address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
@@ -632,7 +632,7 @@ contract BitcoinPodManagerTest is Test {
         // Setup
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
 
         vm.prank(user);
         address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
@@ -665,7 +665,7 @@ contract BitcoinPodManagerTest is Test {
         // Setup
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
 
         vm.prank(user);
         address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
@@ -698,7 +698,7 @@ contract BitcoinPodManagerTest is Test {
         // Setup
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
 
         vm.prank(user);
         address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);
@@ -713,7 +713,7 @@ contract BitcoinPodManagerTest is Test {
         // Setup
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
         vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+        motifStakeRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
 
         vm.prank(user);
         address podAddress = podManager.createPod(operator, userBtcAddress, lockScript);

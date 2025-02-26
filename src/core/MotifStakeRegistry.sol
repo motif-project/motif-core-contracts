@@ -2,20 +2,20 @@
 pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import "../interfaces/IBitDSMRegistry.sol";
+import "../interfaces/IMotifStakeRegistry.sol";
 import "../libraries/ECDSAStakeRegistry.sol";
 
-// @inheritdoc IBitDSMRegistry
+// @inheritdoc IMotifStakeRegistry
 // @inheritdoc ECDSAStakeRegistry
-contract BitDSMRegistry is ECDSAStakeRegistry, PausableUpgradeable, IBitDSMRegistry {
+contract MotifStakeRegistry is ECDSAStakeRegistry, PausableUpgradeable, IMotifStakeRegistry {
     /// @notice mapping of operator addresses to their BTC public keys
     mapping(address => bytes) private _operatorToBtcPublicKey;
 
-    /// @notice constructor for the BitDSMRegistry
+    /// @notice constructor for the MotifStakeRegistry
     constructor(IDelegationManager _delegationManager) ECDSAStakeRegistry(_delegationManager) {}
 
     /**
-     * @notice Initializes the BitDSMRegistry contract
+     * @notice Initializes the MotifStakeRegistry contract
      * @param _serviceManager The address of the service manager
      * @param _thresholdWeight The threshold weight in basis points
      * @param _quorum The quorum struct containing the details of the quorum thresholds
@@ -29,7 +29,7 @@ contract BitDSMRegistry is ECDSAStakeRegistry, PausableUpgradeable, IBitDSMRegis
     }
 
     /**
-     * @inheritdoc IBitDSMRegistry
+     * @inheritdoc IMotifStakeRegistry
      */
     function registerOperatorWithSignature(
         ISignatureUtils.SignatureWithSaltAndExpiry memory _operatorSignature,
@@ -49,9 +49,9 @@ contract BitDSMRegistry is ECDSAStakeRegistry, PausableUpgradeable, IBitDSMRegis
     }
 
     /**
-     * @inheritdoc IBitDSMRegistry
+     * @inheritdoc IMotifStakeRegistry
      */
-    function deregisterOperator() external override(ECDSAStakeRegistry, IBitDSMRegistry) {
+    function deregisterOperator() external override(ECDSAStakeRegistry, IMotifStakeRegistry) {
         require(_operatorToBtcPublicKey[msg.sender].length > 0, "Operator not registered");
         // deregister operator from avs
         _deregisterOperator(msg.sender);
@@ -62,14 +62,14 @@ contract BitDSMRegistry is ECDSAStakeRegistry, PausableUpgradeable, IBitDSMRegis
     }
 
     /**
-     * @inheritdoc IBitDSMRegistry
+     * @inheritdoc IMotifStakeRegistry
      */
     function isOperatorBtcKeyRegistered(address operator) external view returns (bool) {
         return _operatorToBtcPublicKey[operator].length > 0;
     }
 
     /**
-     * @inheritdoc IBitDSMRegistry
+     * @inheritdoc IMotifStakeRegistry
      */
     function getOperatorBtcPublicKey(address operator) external view returns (bytes memory) {
         require(_operatorToBtcPublicKey[operator].length > 0, "Operator not registered");

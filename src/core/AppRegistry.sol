@@ -10,7 +10,7 @@ import "../libraries/EIP1271SignatureUtils.sol";
 
 /**
  * @title AppRegistry
- * @notice A registry contract for managing application registrations in the BitDSM protocol
+ * @notice A registry contract for managing application registrations in the MOTIF protocol
  * @dev Implements EIP-1271 signature verification for secure app registration
  *
  * The AppRegistry contract provides the following key functionality:
@@ -60,7 +60,7 @@ contract AppRegistry is
 
     constructor() {
         DOMAIN_SEPARATOR =
-            keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes("BitDSM")), block.chainid, address(this)));
+            keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes("MOTIF")), block.chainid, address(this)));
     }
 
     /**

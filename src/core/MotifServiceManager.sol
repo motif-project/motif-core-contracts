@@ -3,15 +3,14 @@ pragma solidity ^0.8.12;
 
 import "@eigenlayer-middleware/src/unaudited/ECDSAServiceManagerBase.sol";
 import "@eigenlayer-middleware/src/unaudited/ECDSAStakeRegistry.sol";
-import "../interfaces/IBitDSMServiceManager.sol";
+import "../interfaces/IMotifServiceManager.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IBitcoinPodManager.sol";
-import "../interfaces/IBitDSMRegistry.sol";
 import "../interfaces/IBitcoinPod.sol";
 import "../libraries/BitcoinUtils.sol";
 
 /**
- * @title BitDSM Service Manager
+ * @title Motif Service Manager
  * @dev This contract manages Bitcoin DSM (Decentralized Service Manager) operations
  * @notice Extends ECDSAServiceManagerBase to handle Bitcoin pod operations and deposits
  *
@@ -23,9 +22,9 @@ import "../libraries/BitcoinUtils.sol";
  * Dependencies:
  * - ECDSAServiceManagerBase: Base contract for ECDSA service management
  * - IBitcoinPodManager: Interface for Bitcoin pod management
- * - IBitDSMRegistry: Registry interface for BitDSM services and handling EigenLayer staking and delegation
+ * - IMotifStakeRegistry: Registry interface for Motif services and handling EigenLayer staking and delegation
  */
-contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager {
+contract MotifServiceManager is ECDSAServiceManagerBase, IMotifServiceManager {
     // Attach library to bytes type for direct usage with bytes variables
     using BitcoinUtils for bytes;
     // State variables
@@ -45,21 +44,21 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         _;
     }
     /**
-     * @notice Constructor for BitDSMServiceManager contract
-     * @dev Initializes the contract with required dependencies from EigenLayer and BitDSM
+     * @notice Constructor for MotifServiceManager contract
+     * @dev Initializes the contract with required dependencies from EigenLayer and Motif
      * @param _avsDirectory Address of the EigenLayer AVS Directory contract
-     * @param _bitDSMRegistry Address of the BitDSM Registry contract for operator management
+     * @param _motifStakeRegistry Address of the Motif Stake Registry contract for operator management
      * @param _rewardsCoordinator Address of the rewards coordinator contract
      * @param _delegationManager Address of EigenLayer's delegation manager contract
      *
      */
 
-    constructor(address _avsDirectory, address _bitDSMRegistry, address _rewardsCoordinator, address _delegationManager)
-        ECDSAServiceManagerBase(_avsDirectory, _bitDSMRegistry, _rewardsCoordinator, _delegationManager)
+    constructor(address _avsDirectory, address _motifStakeRegistry, address _rewardsCoordinator, address _delegationManager)
+        ECDSAServiceManagerBase(_avsDirectory, _motifStakeRegistry, _rewardsCoordinator, _delegationManager)
     {}
 
     /**
-     * @notice Initializes the BitDSMServiceManager contract
+    * @notice Initializes the MotifServiceManager contract
      * @param _owner Address of the owner of the contract
      * @param _rewardsInitiator Address of the rewards initiator
      * @param bitcoinPodManager Address of the BitcoinPodManager contract
@@ -69,7 +68,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         _bitcoinPodManager = IBitcoinPodManager(bitcoinPodManager);
     }
     /**
-     * @inheritdoc IBitDSMServiceManager
+     * @inheritdoc IMotifServiceManager
      */
 
     function setBitcoinPodManager(address bitcoinPodManager) external onlyOwner {
@@ -79,7 +78,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         _bitcoinPodManager = IBitcoinPodManager(bitcoinPodManager);
     }
     /**
-     * @inheritdoc IBitDSMServiceManager
+     * @inheritdoc IMotifServiceManager
      */
 
     function getBitcoinPodManager() external view returns (address) {
@@ -87,7 +86,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
     }
 
     /**
-     * @inheritdoc IBitDSMServiceManager
+     * @inheritdoc IMotifServiceManager
      */
     function confirmDeposit(address pod, bytes calldata signature) external onlyPodOperator(pod) {
         if (!_bitcoinPodManager.hasPendingBitcoinDepositRequest(pod)) {
@@ -116,7 +115,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
     }
 
     /**
-     * @inheritdoc IBitDSMServiceManager
+     * @inheritdoc IMotifServiceManager
      */
     function withdrawBitcoinPSBT(address pod, uint256 amount, bytes calldata psbtTransaction, bytes calldata signature)
         external
@@ -158,7 +157,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
     }
 
     /**
-     * @inheritdoc IBitDSMServiceManager
+     * @inheritdoc IMotifServiceManager
      */
     function withdrawBitcoinCompleteTx(address pod, uint256 amount, bytes calldata completeTx, bytes calldata signature)
         external
@@ -198,7 +197,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
     }
 
     /**
-     * @inheritdoc IBitDSMServiceManager
+     * @inheritdoc IMotifServiceManager
      */
     function confirmWithdrawal(address pod, bytes calldata transaction, bytes calldata signature)
         external

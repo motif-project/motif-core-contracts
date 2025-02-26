@@ -2,7 +2,7 @@
 pragma solidity ^0.8.12;
 
 import {Script} from "forge-std/Script.sol";
-import {BitDSMServiceManager} from "../../src/core/BitDSMServiceManager.sol";
+import {MotifServiceManager} from "../../src/core/MotifServiceManager.sol";
 import {console} from "forge-std/console.sol";
 
 contract VerifyMetadataUpdate is Script {
@@ -12,7 +12,7 @@ contract VerifyMetadataUpdate is Script {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
 
-        BitDSMServiceManager proxy = BitDSMServiceManager(_SERVICE_MANAGER_PROXY);
+        MotifServiceManager proxy = MotifServiceManager(_SERVICE_MANAGER_PROXY);
 
         // Verify owner
         address owner = proxy.owner();
@@ -24,7 +24,7 @@ contract VerifyMetadataUpdate is Script {
 
         // Update metadata
         proxy.updateAVSMetadataURI(
-            "https://raw.githubusercontent.com/BitDSM/BitDSM/refs/heads/implement-v1-ecdsa/script/uri/avs_uri.json"
+            "https://raw.githubusercontent.com/motif-project/motif/refs/heads/dev/assets/uri/avs_uri.json"
         );
 
         vm.stopBroadcast();

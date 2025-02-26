@@ -3,8 +3,8 @@ pragma solidity ^0.8.12;
 
 import {ISignatureUtils} from "@eigenlayer/src/contracts/interfaces/ISignatureUtils.sol";
 /**
- * @title BitDSM Registry
- * @notice Registry contract for Bitcoin DSM (Decentralized Service Manager) operators
+ * @title Motif Stake Registry
+ * @notice Registry contract for Motif operators
  * @dev THIS CONTRACT IS NOT AUDITED.
  * @dev Extends ECDSAStakeRegistry to handle Bitcoin-specific operator registration
  *
@@ -20,12 +20,12 @@ import {ISignatureUtils} from "@eigenlayer/src/contracts/interfaces/ISignatureUt
  * - Integration with EigenLayer staking
  *
  * The contract works in conjunction with:
- * - BitDSMServiceManager: For operator task management
+ * - MotifServiceManager: For operator task management
  * - BitcoinPodManager: For pod operations
  * - EigenLayer: For staking and delegation
  */
 
-interface IBitDSMRegistry {
+interface IMotifStakeRegistry {
     /**
      * @notice Emitted when an operator registers their Bitcoin public key
      * @param operator Address of the operator registering their key
@@ -44,7 +44,7 @@ interface IBitDSMRegistry {
      * @param _signingKey The signing key to add to the operator's history
      * @param btcPublicKey The Bitcoin public key to register for the operator
      * @dev caller must be the operator itself
-     * @dev Only interface for registering an operator with BitDSM AVS
+     * @dev Only interface for registering an operator with Motif AVS
      */
     function registerOperatorWithSignature(
         ISignatureUtils.SignatureWithSaltAndExpiry memory _operatorSignature,
@@ -54,7 +54,7 @@ interface IBitDSMRegistry {
 
     /**
      * @notice Deregisters an operator and removes their Bitcoin public key
-     * @dev Only interface for deregistering an operator with BitDSM AVS
+     * @dev Only interface for deregistering an operator with Motif AVS
      */
     function deregisterOperator() external;
 

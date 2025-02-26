@@ -2,9 +2,9 @@
 pragma solidity ^0.8.12;
 
 import {Test, console} from "forge-std/Test.sol";
-import "../src/core/BitDSMRegistry.sol";
+import "../src/core/MotifStakeRegistry.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {IBitDSMRegistry} from "../src/interfaces/IBitDSMRegistry.sol";
+import {IMotifStakeRegistry} from "../src/interfaces/IMotifStakeRegistry.sol";
 
 import {ISignatureUtils} from "@eigenlayer/src/contracts/interfaces/ISignatureUtils.sol";
 import {IDelegationManager} from "@eigenlayer/src/contracts/interfaces/IDelegationManager.sol";
@@ -41,8 +41,8 @@ contract MockDelegationManager {
     }
 }
 
-contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
-    BitDSMRegistry public registry;
+contract MotifStakeRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
+    MotifStakeRegistry public registry;
     // address public owner;
     MockDelegationManager public mockDelegationManager;
     MockServiceManager public mockServiceManager;
@@ -77,7 +77,7 @@ contract BitDSMRegistryTest is Test, ECDSAStakeRegistryEventsAndErrors {
         quorum.strategies[0] = StrategyParams({strategy: mockStrategy, multiplier: 10_000});
 
         // Deploy registry
-        registry = new BitDSMRegistry(IDelegationManager(address(mockDelegationManager)));
+        registry = new MotifStakeRegistry(IDelegationManager(address(mockDelegationManager)));
 
         registry.initialize(address(mockServiceManager), 100, quorum);
         // register operator1

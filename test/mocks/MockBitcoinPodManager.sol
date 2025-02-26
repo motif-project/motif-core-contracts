@@ -10,16 +10,16 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
     mapping(address => string) public podToWithdrawalAddress;
     mapping(address => address) public podToApp;
     mapping(address => address) public userToPod;
-    address public bitDSMServiceManager;
+    address public motifServiceManager;
     uint256 public totalTVL;
     uint256 public totalPods;
 
-    constructor(address _bitDSMServiceManager) {
-        bitDSMServiceManager = _bitDSMServiceManager;
+    constructor(address _motifServiceManager) {
+        motifServiceManager = _motifServiceManager;
     }
 
-    function updateServiceManager(address _bitDSMServiceManager) external {
-        bitDSMServiceManager = _bitDSMServiceManager;
+    function updateServiceManager(address _motifServiceManager) external {
+        motifServiceManager = _motifServiceManager;
     }
 
     function getBitcoinDepositRequest(address pod) external view returns (BitcoinDepositRequest memory) {
@@ -80,7 +80,7 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
     }
 
     function confirmBitcoinDeposit(address pod, bytes32 transactionId, uint256 amount) external {
-        require(msg.sender == bitDSMServiceManager, "Only service manager");
+        require(msg.sender == motifServiceManager, "Only service manager");
         require(podToBitcoinDepositRequest[pod].transactionId == transactionId, "Invalid tx id");
 
         IBitcoinPod(pod).mint(amount);
@@ -110,7 +110,7 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
     }
 
     function withdrawBitcoinAsTokens(address pod) external {
-        require(msg.sender == bitDSMServiceManager, "Only service manager");
+        require(msg.sender == motifServiceManager, "Only service manager");
         require(bytes(podToWithdrawalAddress[pod]).length != 0, "No withdrawal request");
 
         uint256 balance = IBitcoinPod(pod).getBitcoinBalance();
@@ -122,7 +122,7 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
     function setSignedBitcoinWithdrawTransactionPod(address pod, bytes memory signedBitcoinWithdrawTransaction)
         external
     {
-        require(msg.sender == bitDSMServiceManager, "Only service manager");
+        require(msg.sender == motifServiceManager, "Only service manager");
         IBitcoinPod(pod).setSignedBitcoinWithdrawTransaction(signedBitcoinWithdrawTransaction);
     }
 
@@ -138,15 +138,15 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
         return totalTVL;
     }
 
-    function getBitDSMServiceManager() external view returns (address) {
-        return bitDSMServiceManager;
+    function getMotifServiceManager() external view returns (address) {
+        return motifServiceManager;
     }
 
     function getAppRegistry() external pure returns (address) {
         return address(0);
     }
 
-    function getBitDSMRegistry() external pure returns (address) {
+    function getMotifStakeRegistry() external pure returns (address) {
         return address(0);
     }
 }

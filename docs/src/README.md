@@ -1,28 +1,57 @@
-## BitDSM : Bitcoin Delegated Staking Mechanism
-![Bitcoin Abstract Cover](../../assets/cover.jpeg)
+# MOTIF : The first in-kind Bitcoin staking DTP on Ethereum
 
-**BitDSM brings native Bitcoin delegation to ethereum applications.**
+![Motif Cover](../../assets/og_image.png)
 
-The BitcoinPod (BOD) is the core component of BitDSM, modeled after the EigenPod concept. A BOD is a non-custodial vault on the Bitcoin network, created using a P2WSH bitcoin address. The primary objective of the BitcoinPod is to ensure that a smart contract can slash the BOD for predetermined conditions for the value already held in the BitcoinPod or set to be processed through it. 
+**Motif is the first in-kind Bitcoin staking DTP issuance protocol on Ethereum.**
 
-To accomplish this, BOD:
-- function as the withdrawal address for one or more PoS validators managed by the BOD Owner
-- verify pre-signed unbonding transactions from the source chain
-- continuously monitor the Bitcoin blockchain to track the status of all BitcoinPods
-- provide a delegation mechanism to other smart contracts via BOD manager. 
 
-A BOD can be stateful or stateless, ie, either the bitcoins are held in it or the BOD is set as a withdrawal/unbonding address for a PoS validator on another chain. 
+Motif is a decentralized protocol that redefines Bitcoin staking by separating custody from issuance. It empowers Bitcoin holders to solo stake through EigenLayer and access a permissionless staking index that connects them to top-tier digital communities — spanning security, lending, stablecoins, data storage, prediction markets, and AI wallets.
 
-BOD is not a bridge nor does it mint any ERC-20. It is merely a way to delegate your spending authority to a smart contract. This enables other financial applications to be built on top of it like:
-1. LSTs: PoS validators using Bitcoin to secure their chains can set withdrawal address as the BOD to mint an LST on ethereum. 
-2. Lending/Borrowing: BOD can be locked as the collateral for borrowing a stable asset on Ethereum. 
-3. Stable Coin: BOD can act as a CDP to mint a stable asset.
-4. Insurance: BOD can act as an insurance for a BTC Bridge on Ethereum. 
-5. BTC Bridge: BOD can act as a deposit address for minting a wrapped version of Bitcoin on Ethereum. 
+# Core Concepts
 
-BitcoinPods are bootstrapped using restaked security available to the AVS of Eigenlayer. BitcoinPods can be issued by operator sets with predetermined independent tasks, and can be secured either by an insurance built using BitDSM or with LRTs on Ethereum.
+## Bitcoin Remap
 
-Front end link: https://bod-frontend.vercel.app/app
+Motif’s solo staking mechanism is powered by Bitcoin Remap, allowing operators to facilitate in-kind creation and redemption. This ensures that staking Delegated Tokenised Position (DTPs) remain fully backed by Bitcoin, while enabling operators to design risk-adjusted remaps tailored to their Bitcoin Liquidity Providers' (LPs) staking preferences.
+
+## BitcoinPod (BOD)
+
+At the heart of the Motif protocol lies the BitcoinPod (BOD), inspired by the EigenPod concept. A BOD is a non-custodial vault on the Bitcoin network, created using a P2WSH Bitcoin address. The primary objective of a BOD is to ensure that a smart contract can slash the BOD for predetermined conditions for the value already held in the BOD or set to be processed through it.
+
+### Key Functions of BOD
+
+- Validator Withdrawal Address: Acts as the withdrawal address for one or more PoS validators managed by the BOD owner.
+- Pre-signed Unbonding Transactions: Verifies pre-signed unbonding transactions from the source chain.
+- Blockchain Monitoring: Continuously monitors the Bitcoin blockchain to track the status of all BitcoinPods.
+- Delegation: Provides a delegation mechanism to other smart contracts via the BOD manager.
+
+A BOD can be either stateful or stateless:
+
+- Stateful: Holds Bitcoin directly.
+- Stateless: Acts as a withdrawal/unbonding address for a PoS validator on another chain.
+
+Importantly, a BOD is not a bridge and does not mint any ERC-20 tokens. It simply delegates spending authority to a smart contract, unlocking new financial applications.
+
+# Use Cases
+
+By leveraging BitcoinPods, Motif unlocks a range of innovative financial applications, including:
+
+- Liquid Staking Tokens (LSTs): PoS validators using Bitcoin to secure their chains can set the BOD as their withdrawal address, minting an LST on Ethereum.
+- Lending/Borrowing: BODs can be locked as collateral to borrow stable assets on Ethereum.
+- Stablecoins: BODs can act as Collateralized Debt Positions (CDPs) to mint stable assets.
+- Insurance: BODs can serve as an insurance mechanism for BTC bridges on Ethereum.
+- BTC Bridge: BODs can act as deposit addresses for minting wrapped versions of Bitcoin on Ethereum.
+
+# Security
+
+BitcoinPods are secured by restaked security available to the EigenLayer's AVS. Operator sets can issue BitcoinPods with predetermined independent tasks, secured either through insurance mechanisms built using BitDSM or Liquid Restaking Tokens (LRTs) on Ethereum.
+
+Motif is pushing the boundaries of Bitcoin’s utility by combining EigenLayer’s restaking innovations with native Bitcoin security. This foundation unlocks a dynamic ecosystem of staking, lending, and financial primitives — all while keeping Bitcoin at the core.
+
+# Frontend
+
+Front end link: https://motif.finance/
+
+You can find the [Motif examples here](https://github.com/Motif-Protocol/motif-examples).
 
 ## Usage
 
@@ -59,43 +88,44 @@ $ anvil
 ### Deploy
 
 ```shell
-$ forge script script/deploy.s.sol:DeployScript --fork-url http://localhost:8545 --broadcast --private-key $PRIVATE_KEY
+$ forge script script/DeployMotif.s.sol:DeployMotif --fork-url http://localhost:8545 --broadcast --private-key $PRIVATE_KEY
 ```
 
 ### To-Do
+
 EigenLayer AVS deployment and operator registration.
 
 ```shell
 $ forge --help
 $ anvil --help
 $ cast --help
-```
+``` 
 
 ## Deployment
 
 ```shell
-$ forge script script/DeployBitDSM.s.sol:DeployBitDSM --fork-url http://localhost:8545 --broadcast --private-key $PRIVATE_KEY
+$ forge script script/DeployMotif.s.sol:DeployMotif --fork-url http://localhost:8545 --broadcast --private-key $PRIVATE_KEY
 ```
 
-## Existing Holesky Testnet Deployment 
- 
-| Contract Name                               | Holesky Address                                                                                                                 | 
-| -------------                               | --------------------------------------------------------------------                                                            |
-| ProxyAdmin                                  | [0x71e4efecf796bbbc562f639adde036784f67a563](https://holesky.etherscan.io/address/0x71e4efecf796bbbc562f639adde036784f67a563)   |
-| BitDSMRegistry                              | [0x9619e0b51531ba2607d55422d66b14c570d5de7a](https://holesky.etherscan.io/address/0x9619e0b51531ba2607d55422d66b14c570d5de7a)   |
-| BitDSMRegistryImplementation                | [0x641ff9a3d79f24fe45fb6b7351bcb43c2e7aed44](https://holesky.etherscan.io/address/0x641ff9a3d79f24fe45fb6b7351bcb43c2e7aed44)   |
-| BitDSmServiceManager                        | [0x3e091b2318356b1aa1d5f0bd846e956b48beb238](https://holesky.etherscan.io/address/0x3e091b2318356b1aa1d5f0bd846e956b48beb238)   |
-| BitDSMServiceManagerImplementation          | [0xe6440517ffee6be577ffff6b9b528a01c25bad80](https://holesky.etherscan.io/address/0xe6440517ffee6be577ffff6b9b528a01c25bad80)   |
-| AppRegistry                                 | [0xd2a6d4e2f8faf4ee980be7ff43fb9e47b496b475](https://holesky.etherscan.io/address/0xd2a6d4e2f8faf4ee980be7ff43fb9e47b496b475)   |   
-| AppRegistryImplementation                   | [0x8dad35e5f7f76b1dbf5874db00616e296a81123c](https://holesky.etherscan.io/address/0x8dad35e5f7f76b1dbf5874db00616e296a81123c)   |
-| BitcoinPodManager                           | [0x3fab0a58446da7a0703c0856a7c05abfa5a0f964](https://holesky.etherscan.io/address/0x3fab0a58446da7a0703c0856a7c05abfa5a0f964)   |
-| BitcoinPodManagerImplementation             | [0x9AF4733B16Df32ea6cdf806ed137F778242d5b32](https://holesky.etherscan.io/address/0x9AF4733B16Df32ea6cdf806ed137F778242d5b32)   |
+## Existing Holesky Testnet Deployment
+
+| Contract Name                      | Holesky Address                                                                                                               |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| ProxyAdmin                         | [0xc8a51779c4d6365dd5fc4779a6518fc1598d1654](https://holesky.etherscan.io/address/0xc8a51779c4d6365dd5fc4779a6518fc1598d1654) |
+| MotifStakeRegistry                 | [0xba3c98e3d60871f92d1c8890a13207fe46534641](https://holesky.etherscan.io/address/0xba3c98e3d60871f92d1c8890a13207fe46534641) |
+| MotifStakeRegistryImplementation   | [0x37e04ac839c85e472310ff592b83e3f15e9920ec](https://holesky.etherscan.io/address/0x37e04ac839c85e472310ff592b83e3f15e9920ec) |
+| MotifServiceManager                | [0x7238717bcf57fa8dcfece86f827e05a1ad4bf6b1](https://holesky.etherscan.io/address/0x7238717bcf57fa8dcfece86f827e05a1ad4bf6b1) |
+| MotifServiceManagerImplementation  | [0xfadca4a8774deaf364fa92d62054430ff76b3e97](https://holesky.etherscan.io/address/0xfadca4a8774deaf364fa92d62054430ff76b3e97) |
+| AppRegistry                        | [0x91677dd787cd9056c5805cbb74e271fd83d88e61](https://holesky.etherscan.io/address/0x91677dd787cd9056c5805cbb74e271fd83d88e61) |
+| AppRegistryImplementation          | [0x25dd3fc30f59f240cfccfd893340f9cb9e365d75](https://holesky.etherscan.io/address/0x25dd3fc30f59f240cfccfd893340f9cb9e365d75) |
+| BitcoinPodManager                  | [0x96eae70bc21925dde05602c87c4483579205b1f6](https://holesky.etherscan.io/address/0x96eae70bc21925dde05602c87c4483579205b1f6) |
+| BitcoinPodManagerImplementation    | [0x49741f924ef91b14184ebe38b952f3ddf09008be](https://holesky.etherscan.io/address/0x49741f924ef91b14184ebe38b952f3ddf09008be) |
 
 Please see [Current Testnet Deployment](https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-testnet-deployment) for additional deployed addresses of core EigenLayer contracts.
 
+## Access Deployment Files
 
-## Access Deployment Files 
-Contract deployment files including the abi's can be found at the following address. 
+Contract deployment files including the abi's can be found at the following address.
 
 ```
 DEPLOYMENT_FILES_DIR=contracts/script/output/${CHAINID}

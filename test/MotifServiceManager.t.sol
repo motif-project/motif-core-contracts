@@ -2,7 +2,7 @@
 pragma solidity ^0.8.12;
 
 import "forge-std/Test.sol";
-import {BitDSMServiceManager} from "../src/core/BitDSMServiceManager.sol";
+import {MotifServiceManager} from "../src/core/MotifServiceManager.sol";
 import "./mocks/MockBitcoinPod.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -42,10 +42,10 @@ contract MockECDSAStakeRegistry {
     }
 }
 
-contract BitDSMServiceManagerTest is Test {
+contract MotifServiceManagerTest is Test {
     using ECDSA for bytes32;
 
-    BitDSMServiceManager public serviceManager;
+    MotifServiceManager public serviceManager;
     address public podAddress;
     MockBitcoinPodManager public podManager;
 
@@ -59,18 +59,17 @@ contract BitDSMServiceManagerTest is Test {
     uint256 private _operatorPrivateKey;
     bytes public operatorBtcPubKey;
     string public bitcoinAddress;
-    // constructor for the BitDSmServiceManagerTest
-    // constructor() BitDSMServiceManager(address(mockAVSDirectory), address(mockStakeRegistry), address(0), address(0)) {}
+    
 
     event BitcoinWithdrawalTransactionSigned(address indexed pod, address indexed operator, uint256 amount);
     event BTCAddressVerified(address indexed operator, string indexed btcAddress);
 
-    function _deployProxiedServiceManager() internal returns (BitDSMServiceManager) {
+    function _deployProxiedServiceManager() internal returns (MotifServiceManager) {
         // Deploy ProxyAdmin if not already deployed
         ProxyAdmin proxyAdmin = new ProxyAdmin();
 
         // Deploy implementation
-        BitDSMServiceManager impl = new BitDSMServiceManager(
+        MotifServiceManager impl = new MotifServiceManager(
             address(mockAVSDirectory),
             address(mockStakeRegistry),
             address(0), // rewards coordinator
@@ -82,14 +81,14 @@ contract BitDSMServiceManagerTest is Test {
             address(impl),
             address(proxyAdmin),
             abi.encodeWithSelector(
-                BitDSMServiceManager.initialize.selector,
+                MotifServiceManager.initialize.selector,
                 testOwner,
                 address(0), // middleware utils
                 address(podManager)
             )
         );
 
-        return BitDSMServiceManager(address(proxy));
+        return MotifServiceManager(address(proxy));
     }
 
     function setUp() public {
@@ -277,9 +276,9 @@ contract BitDSMServiceManagerTest is Test {
 }
 // mock test contract to test the verifyPSBTOutputs function
 
-contract TestVerifyPSBTOutputsContract is BitDSMServiceManager {
+contract TestVerifyPSBTOutputsContract is MotifServiceManager {
     // Mock constructor for the TestVerifyPSBTOutputs
-    constructor() BitDSMServiceManager(address(0), address(0), address(0), address(0)) {}
+    constructor() MotifServiceManager(address(0), address(0), address(0), address(0)) {}
 
     function verifyPSBTOutputs(bytes calldata psbtBytes, string memory withdrawAddress, uint256 withdrawAmount)
         external

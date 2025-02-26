@@ -15,14 +15,14 @@ contract BitcoinPodManagerStorage {
     /// @notice Total Value Locked in all pods (in satoshis)
     uint256 internal _totalTVL;
 
-    /// @notice Address of the BitDSMService manager contract
-    address internal _bitDSMServiceManager;
+    /// @notice Address of the Motif Service manager contract
+    address internal _motifServiceManager;
 
     /// @notice Address of the App Registry contract
     address internal _appRegistry;
 
-    /// @notice Address of the BitDSM Registry contract
-    address internal _bitDSMRegistry;
+    /// @notice Address of the Motif Stake Registry contract
+    address internal _motifStakeRegistry;
 
     /// @notice Mapping of user address to their pod address
     mapping(address => address) internal _userToPod;
