@@ -109,6 +109,32 @@
   },
   {
     "type": "function",
+    "name": "getTotalAppsRegistered",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getVersion",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
     "name": "initialize",
     "inputs": [
       {
@@ -128,6 +154,30 @@
         "name": "app",
         "type": "address",
         "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isSaltCancelled",
+    "inputs": [
+      {
+        "name": "app",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "salt",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "outputs": [
@@ -206,6 +256,19 @@
     "inputs": [],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "totalAppsRegistered",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -325,6 +388,25 @@
   },
   {
     "type": "event",
+    "name": "SaltCancelled",
+    "inputs": [
+      {
+        "name": "app",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "salt",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Unpaused",
     "inputs": [
       {
@@ -335,5 +417,55 @@
       }
     ],
     "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "AppAlreadyRegistered",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "AppNotRegistered",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidExpiryTime",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidMetadataURILength",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidSignature",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SaltAlreadySpent",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SignatureExpired",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SignatureNotYetValid",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UnauthorizedCaller",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroAddress",
+    "inputs": []
   }
 ]

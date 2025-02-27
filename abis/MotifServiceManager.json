@@ -1,0 +1,652 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "_avsDirectory",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_motifStakeRegistry",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_rewardsCoordinator",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_delegationManager",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "avsDirectory",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "confirmDeposit",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "signature",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "confirmWithdrawal",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "transaction",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "signature",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "createAVSRewardsSubmission",
+    "inputs": [
+      {
+        "name": "rewardsSubmissions",
+        "type": "tuple[]",
+        "internalType": "struct IRewardsCoordinator.RewardsSubmission[]",
+        "components": [
+          {
+            "name": "strategiesAndMultipliers",
+            "type": "tuple[]",
+            "internalType": "struct IRewardsCoordinator.StrategyAndMultiplier[]",
+            "components": [
+              {
+                "name": "strategy",
+                "type": "address",
+                "internalType": "contract IStrategy"
+              },
+              {
+                "name": "multiplier",
+                "type": "uint96",
+                "internalType": "uint96"
+              }
+            ]
+          },
+          {
+            "name": "token",
+            "type": "address",
+            "internalType": "contract IERC20"
+          },
+          {
+            "name": "amount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "startTimestamp",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "duration",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "deregisterOperatorFromAVS",
+    "inputs": [
+      {
+        "name": "operator",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getBitcoinPodManager",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getOperatorRestakedStrategies",
+    "inputs": [
+      {
+        "name": "_operator",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address[]",
+        "internalType": "address[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getRestakeableStrategies",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address[]",
+        "internalType": "address[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "initialize",
+    "inputs": [
+      {
+        "name": "_owner",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_rewardsInitiator",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "bitcoinPodManager",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "owner",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "registerOperatorToAVS",
+    "inputs": [
+      {
+        "name": "operator",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "operatorSignature",
+        "type": "tuple",
+        "internalType": "struct ISignatureUtils.SignatureWithSaltAndExpiry",
+        "components": [
+          {
+            "name": "signature",
+            "type": "bytes",
+            "internalType": "bytes"
+          },
+          {
+            "name": "salt",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "expiry",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "renounceOwnership",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "rewardsInitiator",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setBitcoinPodManager",
+    "inputs": [
+      {
+        "name": "bitcoinPodManager",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setRewardsInitiator",
+    "inputs": [
+      {
+        "name": "newRewardsInitiator",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "stakeRegistry",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "transferOwnership",
+    "inputs": [
+      {
+        "name": "newOwner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "updateAVSMetadataURI",
+    "inputs": [
+      {
+        "name": "_metadataURI",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "withdrawBitcoinCompleteTx",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "completeTx",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "signature",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "withdrawBitcoinPSBT",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "psbtTransaction",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "signature",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "BitcoinWithdrawalTransactionSigned",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "operator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Initialized",
+    "inputs": [
+      {
+        "name": "version",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OwnershipTransferred",
+    "inputs": [
+      {
+        "name": "previousOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RewardsInitiatorUpdated",
+    "inputs": [
+      {
+        "name": "prevRewardsInitiator",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "newRewardsInitiator",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "EmptyPSBTTransaction",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "EmptyWithdrawAddress",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidKeyLength",
+    "inputs": [
+      {
+        "name": "length",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidOperatorBTCKey",
+    "inputs": [
+      {
+        "name": "operatorKey",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "operatorBtcPubKey",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidOperatorSignature",
+    "inputs": [
+      {
+        "name": "operator",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidPSBTOutputs",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidPSBTTransaction",
+    "inputs": [
+      {
+        "name": "length",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidSignatureLength",
+    "inputs": [
+      {
+        "name": "length",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidTransaction",
+    "inputs": [
+      {
+        "name": "length",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NoDepositRequestToConfirm",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NoPSBTOutputs",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NoWithdrawalRequestToConfirm",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NoWithdrawalRequestToProcess",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "TooManyPSBTOutputs",
+    "inputs": [
+      {
+        "name": "length",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "UnauthorizedPodOperator",
+    "inputs": [
+      {
+        "name": "caller",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "WithdrawalRequestAlreadyExists",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ZeroBitcoinPodManagerAddress",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroWithdrawAmount",
+    "inputs": []
+  }
+]
