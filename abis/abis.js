@@ -11,8 +11,8 @@ const artifactsDir = path.join(contractsDir, 'out');
 const contractsToExtract = [
   'IAVSDirectory',
   'IDelegationManager',
-  'BitDSMRegistry',
-  'BitDSMServiceManager',
+  'MotifStakeRegistry',
+  'MotifServiceManager',
   'BitcoinPodManager',
   'AppRegistry',
   'BitcoinPod'

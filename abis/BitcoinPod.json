@@ -17,8 +17,8 @@
     "outputs": [
       {
         "name": "",
-        "type": "bytes",
-        "internalType": "bytes"
+        "type": "string",
+        "internalType": "string"
       }
     ],
     "stateMutability": "view"
@@ -41,11 +41,6 @@
     "name": "burn",
     "inputs": [
       {
-        "name": "_operator",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
         "name": "amount",
         "type": "uint256",
         "internalType": "uint256"
@@ -61,8 +56,8 @@
     "outputs": [
       {
         "name": "",
-        "type": "bytes",
-        "internalType": "bytes"
+        "type": "string",
+        "internalType": "string"
       }
     ],
     "stateMutability": "view"
@@ -108,6 +103,19 @@
   },
   {
     "type": "function",
+    "name": "getPodState",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "enum IBitcoinPod.PodState"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getSignedBitcoinWithdrawTransaction",
     "inputs": [],
     "outputs": [
@@ -140,8 +148,8 @@
       },
       {
         "name": "_btcAddress",
-        "type": "bytes",
-        "internalType": "bytes"
+        "type": "string",
+        "internalType": "string"
       }
     ],
     "outputs": [],
@@ -198,11 +206,6 @@
     "name": "mint",
     "inputs": [
       {
-        "name": "_operator",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
         "name": "amount",
         "type": "uint256",
         "internalType": "uint256"
@@ -252,8 +255,34 @@
   },
   {
     "type": "function",
+    "name": "podState",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "enum IBitcoinPod.PodState"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "renounceOwnership",
     "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setPodState",
+    "inputs": [
+      {
+        "name": "_newState",
+        "type": "uint8",
+        "internalType": "enum IBitcoinPod.PodState"
+      }
+    ],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -305,6 +334,25 @@
   },
   {
     "type": "event",
+    "name": "BurnPodValue",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Initialized",
     "inputs": [
       {
@@ -312,6 +360,25 @@
         "type": "uint8",
         "indexed": false,
         "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MintPodValue",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -331,6 +398,89 @@
         "type": "address",
         "indexed": true,
         "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PodInitialized",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "owner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "operator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PodLocked",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PodStateChanged",
+    "inputs": [
+      {
+        "name": "previousState",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum IBitcoinPod.PodState"
+      },
+      {
+        "name": "newState",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum IBitcoinPod.PodState"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PodUnlocked",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "WithdrawTransactionSet",
+    "inputs": [
+      {
+        "name": "signedTransaction",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
       }
     ],
     "anonymous": false
