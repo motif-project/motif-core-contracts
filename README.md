@@ -111,15 +111,15 @@ $ forge script script/DeployMotif.s.sol:DeployMotif --fork-url http://localhost:
 
 | Contract Name                      | Holesky Address                                                                                                               |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| ProxyAdmin                         | [0xc8a51779c4d6365dd5fc4779a6518fc1598d1654](https://holesky.etherscan.io/address/0xc8a51779c4d6365dd5fc4779a6518fc1598d1654) |
-| MotifStakeRegistry                 | [0xba3c98e3d60871f92d1c8890a13207fe46534641](https://holesky.etherscan.io/address/0xba3c98e3d60871f92d1c8890a13207fe46534641) |
-| MotifStakeRegistryImplementation   | [0x37e04ac839c85e472310ff592b83e3f15e9920ec](https://holesky.etherscan.io/address/0x37e04ac839c85e472310ff592b83e3f15e9920ec) |
-| MotifServiceManager                | [0x7238717bcf57fa8dcfece86f827e05a1ad4bf6b1](https://holesky.etherscan.io/address/0x7238717bcf57fa8dcfece86f827e05a1ad4bf6b1) |
-| MotifServiceManagerImplementation  | [0xfadca4a8774deaf364fa92d62054430ff76b3e97](https://holesky.etherscan.io/address/0xfadca4a8774deaf364fa92d62054430ff76b3e97) |
-| AppRegistry                        | [0x91677dd787cd9056c5805cbb74e271fd83d88e61](https://holesky.etherscan.io/address/0x91677dd787cd9056c5805cbb74e271fd83d88e61) |
-| AppRegistryImplementation          | [0x25dd3fc30f59f240cfccfd893340f9cb9e365d75](https://holesky.etherscan.io/address/0x25dd3fc30f59f240cfccfd893340f9cb9e365d75) |
-| BitcoinPodManager                  | [0x96eae70bc21925dde05602c87c4483579205b1f6](https://holesky.etherscan.io/address/0x96eae70bc21925dde05602c87c4483579205b1f6) |
-| BitcoinPodManagerImplementation    | [0x49741f924ef91b14184ebe38b952f3ddf09008be](https://holesky.etherscan.io/address/0x49741f924ef91b14184ebe38b952f3ddf09008be) |
+| ProxyAdmin                         | [0xd8DE7ffD0F33e1149B8B902e41a17bb818c9f128](https://holesky.etherscan.io/address/0xd8DE7ffD0F33e1149B8B902e41a17bb818c9f128) |
+| MotifStakeRegistry                 | [0x83210B83d55fbCA44099972C358Bf8a4493352B1](https://holesky.etherscan.io/address/0x83210B83d55fbCA44099972C358Bf8a4493352B1) |
+| MotifStakeRegistryImplementation   | [0xfb3637ca52db2997c73a3a9babf04277de1f2881](https://holesky.etherscan.io/address/0xfb3637ca52db2997c73a3a9babf04277de1f2881) |
+| MotifServiceManager                | [0xbf49e34a432EAaC181c7AA65b98A20d04353dadD](https://holesky.etherscan.io/address/0xbf49e34a432EAaC181c7AA65b98A20d04353dadD) |
+| MotifServiceManagerImplementation  | [0x21bcce172f6a5714f63f34aa63a1742b9ab37a19](https://holesky.etherscan.io/address/0x21bcce172f6a5714f63f34aa63a1742b9ab37a19) |
+| AppRegistry                        | [0xe4FAb06cb45dE808894906146456c9f4D66Fad58](https://holesky.etherscan.io/address/0xe4FAb06cb45dE808894906146456c9f4D66Fad58) |
+| AppRegistryImplementation          | [0x78bf598b76c21c9095dfe2bed9d47e411720dac7](https://holesky.etherscan.io/address/0x78bf598b76c21c9095dfe2bed9d47e411720dac7) |
+| BitcoinPodManager                  | [0x033253C94884fdeB529857a66D06047384164525](https://holesky.etherscan.io/address/0x033253C94884fdeB529857a66D06047384164525) |
+| BitcoinPodManagerImplementation    | [0xbb296d05c6df861e2d8a4b6d8a34af175b6a40e9](https://holesky.etherscan.io/address/0xbb296d05c6df861e2d8a4b6d8a34af175b6a40e9) |
 
 Please see [Current Testnet Deployment](https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-testnet-deployment) for additional deployed addresses of core EigenLayer contracts.
 
