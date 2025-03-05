@@ -1,7 +1,6 @@
 {
-  "name": "BitDSM AVS v2",
-  "website": "https://github.com/BitDSM/",
-  "description": "BitDSM brings a new era of Bitcoin integration by enabling native, non-custodial delegation directly to Ethereum applications. At the core are BitcoinPods (BODs), inspired by EigenPods in EigenLayer, allowing smart contracts to execute slashing logic directly on native Bitcoin addresses. This bridgeless approach transforms Bitcoin into a versatile asset for financial activities, from Liquid Staking Tokens and lending to stablecoins and enhanced AVS security.",
-  "logo": "https://raw.githubusercontent.com/BitDSM/BitDSM/f4701901644ceedb32045a9503b782b1d9fb2526/script/uri/cover_bitdsm.png",
-  "twitter": "https://twitter.com/BitDSM"
+  "name": "MOTIF",
+  "website": "https://motif.finance/",
+  "description": "The first in-kind bitcoin staking DTP on ethereum",
+  "logo": "https://raw.githubusercontent.com/motif-project/motif-core-contracts/4399093297be9dc5ba2ce978be14be5633923261/assets/logo_small.png"
 }

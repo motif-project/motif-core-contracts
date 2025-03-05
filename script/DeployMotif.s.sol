@@ -156,7 +156,7 @@ contract DeployMotif is Script {
 
         require(appRegistry.owner() == deployer, "Owner of AppRegistry is not the deployer");
         console.log("AVS Metadata URI: ", metadataUri);
-        //serviceManager.updateAVSMetadataURI(metadataUri);
+        serviceManager.updateAVSMetadataURI(metadataUri);
 
         vm.stopBroadcast();
 
