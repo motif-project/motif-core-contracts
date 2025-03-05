@@ -6,7 +6,7 @@ import {MotifServiceManager} from "../../src/core/MotifServiceManager.sol";
 import {console} from "forge-std/console.sol";
 
 contract VerifyMetadataUpdate is Script {
-    address constant _SERVICE_MANAGER_PROXY = 0x3E091B2318356b1AA1D5F0Bd846E956b48beB238;
+    address constant _SERVICE_MANAGER_PROXY = 0xbf49e34a432EAaC181c7AA65b98A20d04353dadD;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
@@ -24,7 +24,7 @@ contract VerifyMetadataUpdate is Script {
 
         // Update metadata
         proxy.updateAVSMetadataURI(
-            "https://raw.githubusercontent.com/motif-project/motif/refs/heads/dev/assets/uri/avs_uri.json"
+            "https://raw.githubusercontent.com/motif-project/motif-core-contracts/5779be5cfb5053472de74ce2cfda4643d96af556/assets/uri/avs_uri.json"
         );
 
         vm.stopBroadcast();
