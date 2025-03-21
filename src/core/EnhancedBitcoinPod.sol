@@ -154,7 +154,86 @@ contract EnhancedBitcoinPod is
         
         emit PodManagerSet(_podManager);
     }
+    /**
+     * @notice Mint motifBTC tokens
+     * @param _recipient Address to receive the tokens
+     * @return Amount of shares minted
+     * @dev Only callable by owner or curator when delegated to TokenHub
+     */
+    function mintTokens(address _recipient) 
+        external 
+        whenNotPaused 
+        returns (uint256) 
+    {
+        require(
+            hasRole(OWNER_ROLE, msg.sender) || 
+            hasRole(CURATOR_ROLE, msg.sender), 
+            "Not authorized"
+        );
+        require(isDelegatedToTokenHub, "Not delegated to TokenHub");
+        require(_recipient != address(0), "Recipient cannot be zero address");
+
+        // check if the pod is locked
+        require(!locked, "Pod is locked");
+       
+        // Call TokenHub to mint tokens
+        uint256 shares = ITokenHub(tokenHub).mintTokensForPod(
+            address(this),  
+            _recipient
+        );
+        // lock the pod after minting tokens 
+        locked = true;
+        emit PodLocked(address(this));
+        // Update pod shares
+        podShares += shares;
+        emit SharesUpdated(podShares);
+        
+        return shares;
+    }
     
+    /**
+     * @notice Burn motifBTC tokens
+     * @param _shares Amount of shares to burn
+     * @param _recipient Address to receive the Bitcoin (on Bitcoin network)
+     * @return Amount of Bitcoin to be received
+     * @dev Only callable by owner or curator when delegated to TokenHub
+     */
+    function burnTokens(uint256 _shares, address _recipient) 
+        external 
+        whenNotPaused 
+        returns (uint256) 
+    {
+        require(
+            hasRole(OWNER_ROLE, msg.sender) || 
+            hasRole(CURATOR_ROLE, msg.sender) || 
+            msg.sender == address(this), 
+            "Not authorized"
+        );
+        require(isDelegatedToTokenHub, "Not delegated to TokenHub");
+        require(_shares > 0, "Shares must be greater than 0");
+        require(_recipient != address(0), "Recipient cannot be zero address");
+        
+        // If burning from pod's balance, check if we have enough
+        if (msg.sender == address(this)) {
+            require(_shares <= podShares, "Insufficient shares in pod");
+            podShares -= _shares;
+            emit SharesUpdated(podShares);
+        }
+        // check If the same amount of shares is burned as the bitcoin balance in the pod
+        // Should be updated later. Assuming the motifBTC token is not rebased.
+        require(_shares == _bitcoinBalance, "Shares burned do not match Bitcoin balance in pod");
+        
+        // Call TokenHub to burn tokens
+        uint256 bitcoinAmount = ITokenHub(tokenHub).burnTokensForPod(
+            address(this), 
+            _shares, 
+            _recipient
+        );
+        // unlock the pod after burning tokens 
+        locked = false;
+        emit PodUnlocked(address(this));
+        return bitcoinAmount;
+    }
     /**
      * @notice Set delegation status to TokenHub
      * @param _isDelegated Whether the pod is delegated to TokenHub
@@ -175,32 +254,26 @@ contract EnhancedBitcoinPod is
         }
     }
     
-    /**
-     * @notice Lock the pod
-     * @dev Only callable by TokenHub or pod manager
-     */
+    // @inheritdoc IBitcoinPod
     function lock() external override {
         require(
-            msg.sender == tokenHub || 
             msg.sender == podManager, 
-            "Only TokenHub or pod manager can lock"
+            "Only Pod Manager can lock"
         );
-        
+        require(podState == PodState.Active, "Pod is not active");
         locked = true;
+        emit PodLocked(address(this));
     }
     
-    /**
-     * @notice Unlock the pod
-     * @dev Only callable by TokenHub or pod manager
-     */
+    // @inheritdoc IBitcoinPod
     function unlock() external override {
         require(
-            msg.sender == tokenHub || 
-            msg.sender == podManager, 
-            "Only TokenHub or pod manager can unlock"
+            msg.sender == podManager,
+            "Only Pod Manager can unlock"
         );
-        
+        require(podState == PodState.Active, "Pod is not active");
         locked = false;
+        emit PodUnlocked(address(this));
     }
     
     /**

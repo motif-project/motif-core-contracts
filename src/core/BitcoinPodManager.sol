@@ -603,74 +603,66 @@ contract BitcoinPodManager is
         _unpause();
     }
 
+    // Add this struct at the contract level
+    struct EnhancedPodParams {
+        address operator;
+        string btcAddress;
+        bytes script;
+        address motifBitcoin;
+        uint256 operatorFeeBP;
+        uint256 curatorFeeBP;
+        uint256 protocolFeeBP;
+        address protocolFeeRecipient;
+    }
+
     /**
      * @notice Creates a new Enhanced Bitcoin pod
-     * @param operator Address of the pod operator
-     * @param btcAddress Bitcoin address of the pod
-     * @param script Bitcoin script for verification
-     * @param motifBitcoin Address of the MotifBitcoin token
-     * @param operatorFeeBP Operator fee in basis points
-     * @param curatorFeeBP Curator fee in basis points
-     * @param protocolFeeBP Protocol fee in basis points
-     * @param protocolFeeRecipient Address to receive protocol fees
+     * @param params Struct containing pod parameters
      * @return Address of the created pod
      */
-    function createEnhancedPod(
-        address operator,
-        string calldata btcAddress,
-        bytes calldata script,
-        address motifBitcoin,
-        uint256 operatorFeeBP,
-        uint256 curatorFeeBP,
-        uint256 protocolFeeBP,
-        address protocolFeeRecipient
-    ) external whenNotPaused nonReentrant returns (address) {
+    function createEnhancedPod(EnhancedPodParams calldata params) 
+        external 
+        whenNotPaused 
+        nonReentrant 
+        returns (address) 
+    {
         require(_userToPod[msg.sender] == address(0), "User already has a pod");
-        require(IMotifStakeRegistry(_motifStakeRegistry).isOperatorBtcKeyRegistered(operator), "Invalid operator");
-        require(motifBitcoin != address(0), "Invalid motifBitcoin address");
-        require(protocolFeeRecipient != address(0), "Invalid fee recipient");
-        require(operatorFeeBP + curatorFeeBP + protocolFeeBP <= 3000, "Total fees too high"); // Max 30%
+        require(IMotifStakeRegistry(_motifStakeRegistry).isOperatorBtcKeyRegistered(params.operator), "Invalid operator");
+        require(params.motifBitcoin != address(0), "Invalid motifBitcoin address");
+        require(params.protocolFeeRecipient != address(0), "Invalid fee recipient");
+        require(params.operatorFeeBP + params.curatorFeeBP + params.protocolFeeBP <= 3000, "Total fees too high");
 
-        bytes memory operatorBtcPubKey = IMotifStakeRegistry(_motifStakeRegistry).getOperatorBtcPublicKey(operator);
+        bytes memory operatorBtcPubKey = IMotifStakeRegistry(_motifStakeRegistry).getOperatorBtcPublicKey(params.operator);
         
-        // verify the btc address
-        if (!_verifyBTCAddress(btcAddress, script, operatorBtcPubKey)) {
+        if (!_verifyBTCAddress(params.btcAddress, params.script, operatorBtcPubKey)) {
             revert("Invalid BTC address");
         }
 
-        // create the enhanced pod
         EnhancedBitcoinPod newPod = new EnhancedBitcoinPod();
         newPod.initialize(
-            msg.sender, // admin
-            msg.sender, // owner
-            operator,
+            msg.sender,
+            msg.sender,
+            params.operator,
             operatorBtcPubKey,
-            btcAddress,
-            operatorFeeBP,
-            curatorFeeBP,
-            protocolFeeBP,
-            protocolFeeRecipient,
-            motifBitcoin,
-            address(this) // podManager
+            params.btcAddress,
+            params.operatorFeeBP,
+            params.curatorFeeBP,
+            params.protocolFeeBP,
+            params.protocolFeeRecipient,
+            params.motifBitcoin,
+            address(this)
         );
         
-        // Set TokenHub if available
         if (tokenHub != address(0)) {
             newPod.setTokenHub(tokenHub);
         }
         
-        // increment the total pods
         _totalPods++;
-        
-        // set the user to pod mapping
         _setUserPod(msg.sender, address(newPod));
-        
-        // mark as enhanced pod
         isEnhancedPod[address(newPod)] = true;
 
-        emit EnhancedPodCreated(msg.sender, address(newPod), operator);
+        emit EnhancedPodCreated(msg.sender, address(newPod), params.operator);
         
-        // return the pod address
         return address(newPod);
     }
 
