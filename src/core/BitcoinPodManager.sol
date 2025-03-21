@@ -9,8 +9,10 @@ import "../interfaces/IBitcoinPodManager.sol";
 import "../interfaces/IAppRegistry.sol";
 import "../interfaces/IMotifStakeRegistry.sol";
 import "../interfaces/IBitcoinPod.sol";
+import "../interfaces/ITokenHub.sol";
 import "../storage/BitcoinPodManagerStorage.sol";
 import "./BitcoinPod.sol";
+import "./EnhancedBitcoinPod.sol";
 import "../interfaces/IMotifServiceManager.sol";
 import "forge-std/console.sol";
 import "../libraries/BitcoinUtils.sol";
@@ -24,6 +26,7 @@ import "../libraries/BitcoinUtils.sol";
  * - Bitcoin deposit and withdrawal request handling for each pod
  * - Integration with Motif Service Manager for operator actions
  * - Pod delegation to apps
+ * - Pod delegation to TokenHub for enhanced functionality
  *
  *
  * Key components:
@@ -89,6 +92,18 @@ contract BitcoinPodManager is
         _;
     }
 
+    // TokenHub address
+    address public tokenHub;
+    
+    // Enhanced pod tracking
+    mapping(address => bool) public isEnhancedPod;
+    
+    // Events for enhanced functionality
+    event EnhancedPodCreated(address indexed owner, address indexed pod, address indexed operator);
+    event PodDelegatedToTokenHub(address indexed pod, address indexed tokenHub);
+    event PodUndelegatedFromTokenHub(address indexed pod);
+    event TokenHubSet(address indexed tokenHub);
+
     /////////////////////////////
     //// Initialization ////////
     /////////////////////////////
@@ -97,17 +112,21 @@ contract BitcoinPodManager is
      * @param appRegistry_ Address of the App Registry contract
      * @param motifStakeRegistry_ Address of the Motif Stake Registry contract
      * @param motifServiceManager_ Address of the Motif Service Manager contract
+     * @param tokenHub_ Address of the TokenHub contract
      */
-    function initialize(address appRegistry_, address motifStakeRegistry_, address motifServiceManager_)
-        public
-        initializer
-    {
+    function initialize(
+        address appRegistry_, 
+        address motifStakeRegistry_, 
+        address motifServiceManager_,
+        address tokenHub_
+    ) public initializer {
         __Ownable_init();
         __Pausable_init();
         __ReentrancyGuard_init();
         _appRegistry = appRegistry_;
         _motifStakeRegistry = motifStakeRegistry_;
         _motifServiceManager = motifServiceManager_;
+        tokenHub = tokenHub_;
         _totalTVL = 0;
         _totalPods = 0;
     }
@@ -164,6 +183,12 @@ contract BitcoinPodManager is
     function hasPendingBitcoinDepositRequest(address pod) external view override returns (bool) {
         return _podToBitcoinDepositRequest[pod].isPending;
     }
+
+    // 
+    function getTokenHub() external view returns (address) {
+        return tokenHub;
+    }
+    
 
     /**
      * @inheritdoc IBitcoinPodManager
@@ -576,5 +601,143 @@ contract BitcoinPodManager is
 
     function unpause() external onlyOwner {
         _unpause();
+    }
+
+    /**
+     * @notice Creates a new Enhanced Bitcoin pod
+     * @param operator Address of the pod operator
+     * @param btcAddress Bitcoin address of the pod
+     * @param script Bitcoin script for verification
+     * @param motifBitcoin Address of the MotifBitcoin token
+     * @param operatorFeeBP Operator fee in basis points
+     * @param curatorFeeBP Curator fee in basis points
+     * @param protocolFeeBP Protocol fee in basis points
+     * @param protocolFeeRecipient Address to receive protocol fees
+     * @return Address of the created pod
+     */
+    function createEnhancedPod(
+        address operator,
+        string calldata btcAddress,
+        bytes calldata script,
+        address motifBitcoin,
+        uint256 operatorFeeBP,
+        uint256 curatorFeeBP,
+        uint256 protocolFeeBP,
+        address protocolFeeRecipient
+    ) external whenNotPaused nonReentrant returns (address) {
+        require(_userToPod[msg.sender] == address(0), "User already has a pod");
+        require(IMotifStakeRegistry(_motifStakeRegistry).isOperatorBtcKeyRegistered(operator), "Invalid operator");
+        require(motifBitcoin != address(0), "Invalid motifBitcoin address");
+        require(protocolFeeRecipient != address(0), "Invalid fee recipient");
+        require(operatorFeeBP + curatorFeeBP + protocolFeeBP <= 3000, "Total fees too high"); // Max 30%
+
+        bytes memory operatorBtcPubKey = IMotifStakeRegistry(_motifStakeRegistry).getOperatorBtcPublicKey(operator);
+        
+        // verify the btc address
+        if (!_verifyBTCAddress(btcAddress, script, operatorBtcPubKey)) {
+            revert("Invalid BTC address");
+        }
+
+        // create the enhanced pod
+        EnhancedBitcoinPod newPod = new EnhancedBitcoinPod();
+        newPod.initialize(
+            msg.sender, // admin
+            msg.sender, // owner
+            operator,
+            operatorBtcPubKey,
+            btcAddress,
+            operatorFeeBP,
+            curatorFeeBP,
+            protocolFeeBP,
+            protocolFeeRecipient,
+            motifBitcoin,
+            address(this) // podManager
+        );
+        
+        // Set TokenHub if available
+        if (tokenHub != address(0)) {
+            newPod.setTokenHub(tokenHub);
+        }
+        
+        // increment the total pods
+        _totalPods++;
+        
+        // set the user to pod mapping
+        _setUserPod(msg.sender, address(newPod));
+        
+        // mark as enhanced pod
+        isEnhancedPod[address(newPod)] = true;
+
+        emit EnhancedPodCreated(msg.sender, address(newPod), operator);
+        
+        // return the pod address
+        return address(newPod);
+    }
+
+    /**
+     * @notice Delegates a pod to TokenHub
+     * @param pod Address of the pod to delegate
+     * @dev Only callable by pod owner
+     * @dev Pod must be an enhanced pod
+     * @dev Pod must not be delegated to an app
+     */
+    function delegateEnhancedPodToTokenHub(address pod) 
+        external 
+        whenNotPaused 
+        nonReentrant 
+        onlyPodOwner(pod) 
+    {
+        require(isEnhancedPod[pod], "Not an enhanced pod");
+        require(_podToApp[pod] == address(0), "Pod already delegated to app");
+        require(tokenHub != address(0), "TokenHub not set");
+        
+        // Set delegation status on the pod
+        EnhancedBitcoinPod(pod).setDelegationStatus(true);
+        
+        emit PodDelegatedToTokenHub(pod, tokenHub);
+    }
+
+    /**
+     * @notice Undelegates a pod from TokenHub
+     * @param pod Address of the pod to undelegate
+     * @dev Only callable by pod owner
+     * @dev Pod must be an enhanced pod
+     * @dev Pod must be delegated to TokenHub
+     */
+    function undelegateEnhancedPodFromTokenHub(address pod) 
+        external 
+        whenNotPaused 
+        nonReentrant 
+        onlyPodOwner(pod) 
+    {
+        require(isEnhancedPod[pod], "Not an enhanced pod");
+        require(EnhancedBitcoinPod(pod).isDelegatedToTokenHub(), "Pod not delegated to TokenHub");
+        
+        // Set delegation status on the pod
+        EnhancedBitcoinPod(pod).setDelegationStatus(false);
+        
+        emit PodUndelegatedFromTokenHub(pod);
+    }
+
+    /**
+     * @notice Sets the TokenHub address
+     * @param _tokenHub Address of the TokenHub
+     * @dev Only callable by owner
+     */
+    function setTokenHub(address _tokenHub) external onlyOwner {
+        require(_tokenHub != address(0), "TokenHub cannot be zero address");
+        
+        tokenHub = _tokenHub;
+        
+        emit TokenHubSet(_tokenHub);
+    }
+
+    /**
+     * @notice Checks if a pod is an enhanced pod
+     * @param pod Address of the pod to check
+     * @return Whether the pod is an enhanced pod
+     */
+    function isEnhancedBitcoinPod(address pod) external view returns (bool) {
+        return isEnhancedPod[pod];
     }
 }
