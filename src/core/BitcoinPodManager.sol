@@ -583,7 +583,7 @@ contract BitcoinPodManager is
         address operator = IBitcoinPod(pod).getOperator();
         // add transaction to the pod 
         IBitcoinPod(pod).setSignedBitcoinWithdrawTransaction(transaction);
-        emit VerifyPresignedBitcoinDepositRequest(pod, operator, request);
+        emit VerifyPresignedBitcoinDepositRequest(pod, operator, request, transaction);
     }
 
     /**
