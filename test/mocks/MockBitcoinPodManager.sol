@@ -149,4 +149,15 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
     function getMotifStakeRegistry() external pure returns (address) {
         return address(0);
     }
+
+    function withdrawPresignedBitcoinRequest(address pod, string memory withdrawAddress) external {
+        require(bytes(podToWithdrawalAddress[pod]).length == 0, "Withdrawal pending");
+        require(!IBitcoinPod(pod).isLocked(), "Pod locked");
+        podToWithdrawalAddress[pod] = withdrawAddress;
+    }
+    function verifyPresignedBitcoinDepositRequest(address pod, bytes32 transactionId, bytes memory transaction, uint256 amount) external {
+        require(podToBitcoinDepositRequest[pod].transactionId == transactionId, "Invalid tx id");
+        IBitcoinPod(pod).setSignedBitcoinWithdrawTransaction(transaction);
+        podToBitcoinDepositRequest[pod] = BitcoinDepositRequest({transactionId: transactionId, amount: amount, isPending: true});
+    }
 }

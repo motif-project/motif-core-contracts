@@ -563,6 +563,53 @@ contract BitcoinPodManager is
     }
 
     /**
+     * @notice Verifies a presigned Bitcoin deposit request
+     * @param pod The address of the pod
+     * @param transactionId The transaction id of the presigned Bitcoin transaction. Can be dummy for the time being
+     * @param transaction The Presigned Bitcoin transaction
+     * @param amount The amount deposited
+     */
+    function verifyPresignedBitcoinDepositRequest(address pod, bytes32 transactionId, bytes memory transaction, uint256 amount) external 
+    whenNotPaused
+    nonReentrant
+    onlyMotifServiceManager
+    {
+        // check if any request is pending
+        require(_podToBitcoinDepositRequest[pod].isPending == false, "Request already pending");
+        BitcoinDepositRequest memory request =
+            BitcoinDepositRequest({transactionId: transactionId, amount: amount, isPending: true});
+        _podToBitcoinDepositRequest[pod] = request;
+        // get operator for the pod
+        address operator = IBitcoinPod(pod).getOperator();
+        // add transaction to the pod 
+        IBitcoinPod(pod).setSignedBitcoinWithdrawTransaction(transaction);
+        emit VerifyPresignedBitcoinDepositRequest(pod, operator, request);
+    }
+
+    /**
+     * @notice Withdraws a presigned Bitcoin transaction request for the Operator
+     * @param pod The address of the pod
+     */
+    function withdrawPresignedBitcoinRequest(address pod, string memory withdrawAddress)  external
+        whenNotPaused
+        nonReentrant
+        onlyPodOwner(pod)
+    {
+        require(bytes(_podToWithdrawalAddress[pod]).length == 0, "Withdrawal already requested");
+        require(bytes(withdrawAddress).length > 0, "Invalid withdraw address");
+        // check if the pod is locked
+        require(!IBitcoinPod(pod).isLocked(), "Pod is locked");
+        // check if pod is undelegated
+        require(_podToApp[pod] == address(0), "Pod is delegated");
+        // get the operator for the pod
+        address operator = IBitcoinPod(pod).getOperator();
+        _podToWithdrawalAddress[pod] = withdrawAddress;
+        // set the pod state to inactive
+        IBitcoinPod(pod).setPodState(IBitcoinPod.PodState.Inactive);
+        // emit the event
+        emit WithdrawPresignedBitcoinRequest(pod, operator, withdrawAddress);
+    }
+    /**
      * @notice Pauses all contract functions
      * @dev Only callable by contract owner
      */

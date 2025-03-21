@@ -148,6 +148,14 @@ interface IBitcoinPodManager {
     event VerifyBitcoinDepositRequest(
         address indexed pod, address indexed operator, BitcoinDepositRequest bitcoinDepositRequest
     );
+
+    event VerifyPresignedBitcoinDepositRequest(
+        address indexed pod, address indexed operator, BitcoinDepositRequest bitcoinDepositRequest
+    );
+
+    event WithdrawPresignedBitcoinRequest(
+        address indexed pod, address indexed operator, string withdrawAddress
+    );  
     /**
      * @notice Event emitted when a deposit is confirmed on Bitcoin Network
      * @param pod The address of the pod receiving the deposit
@@ -271,4 +279,20 @@ interface IBitcoinPodManager {
      */
     function setSignedBitcoinWithdrawTransactionPod(address pod, bytes memory signedBitcoinWithdrawTransaction)
         external;
+
+    /**
+     * @notice Verifies a presigned Bitcoin deposit request
+     * @param pod The address of the pod
+     * @param transactionId The transaction id of the presigned Bitcoin transaction. Can be dummy for the time being
+     * @param transaction The Presigned Bitcoin transaction
+     * @param amount The amount deposited
+     */
+    function verifyPresignedBitcoinDepositRequest(address pod, bytes32 transactionId, bytes memory transaction, uint256 amount) external;
+
+    /**
+     * @notice Withdraws a presigned Bitcoin transaction request for the Operator
+     * @param pod The address of the pod
+     * @param withdrawAddress The address to which the Bitcoin is withdrawn
+     */
+    function withdrawPresignedBitcoinRequest(address pod, string memory withdrawAddress) external;
 }

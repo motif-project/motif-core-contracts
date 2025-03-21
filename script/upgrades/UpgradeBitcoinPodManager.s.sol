@@ -8,11 +8,11 @@ import {console} from "forge-std/console.sol";
 contract UpgradeBitcoinPodManager is Script {
     uint256 deployerPrivateKey;
     address deployer;
-    address constant _PROXY_ADMIN = 0x71e4eFEcF796bBBC562f639ADde036784F67a563;
-    address constant _BITCOIN_POD_MANAGER_PROXY = 0x3FAB0A58446da7a0703c0856A7c05abfa5a0F964;
-    address constant _APP_REGISTRY = 0xD2a6d4e2F8FaF4Ee980be7Ff43Fb9e47b496b475;
-    address constant _MOTIF_STAKE_REGISTRY = 0x9619E0B51531ba2607d55422D66b14c570d5DE7a;
-    address constant _SERVICE_MANAGER = 0x3E091B2318356b1AA1D5F0Bd846E956b48beB238;
+    address constant _PROXY_ADMIN = 0xd8DE7ffD0F33e1149B8B902e41a17bb818c9f128;
+    address constant _BITCOIN_POD_MANAGER_PROXY = 0x033253C94884fdeB529857a66D06047384164525;
+    address constant _APP_REGISTRY = 0xe4FAb06cb45dE808894906146456c9f4D66Fad58;
+    address constant _MOTIF_STAKE_REGISTRY = 0x83210B83d55fbCA44099972C358Bf8a4493352B1;
+    address constant _SERVICE_MANAGER = 0xbf49e34a432EAaC181c7AA65b98A20d04353dadD;
 
     function upgradeBitcoinPodManager() public {
         // Deploy new implementation
