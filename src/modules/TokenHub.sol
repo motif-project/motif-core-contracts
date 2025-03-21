@@ -247,14 +247,6 @@ contract TokenHub is
         return motifBitcoin.getSharesByPooledBitcoin(_bitcoinAmount);
     }
     
-    /**
-     * @notice Get Bitcoin by shares
-     * @param _shares Number of shares
-     * @return Amount of Bitcoin
-     */
-    function getBitcoinByShares(uint256 _shares) external view returns (uint256) {
-        return motifBitcoin.getBitcoinByShares(_shares);
-    }
     
     /**
      * @notice Get total shares

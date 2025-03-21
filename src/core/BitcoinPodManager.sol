@@ -112,7 +112,7 @@ contract BitcoinPodManager is
      * @param appRegistry_ Address of the App Registry contract
      * @param motifStakeRegistry_ Address of the Motif Stake Registry contract
      * @param motifServiceManager_ Address of the Motif Service Manager contract
-     * @param tokenHub_ Address of the TokenHub contract
+     * @param tokenHub_ Address of the TokenHub contract (optional, can be zero address)
      */
     function initialize(
         address appRegistry_, 
@@ -126,7 +126,7 @@ contract BitcoinPodManager is
         _appRegistry = appRegistry_;
         _motifStakeRegistry = motifStakeRegistry_;
         _motifServiceManager = motifServiceManager_;
-        tokenHub = tokenHub_;
+        tokenHub = tokenHub_; // Can be address(0)
         _totalTVL = 0;
         _totalPods = 0;
     }

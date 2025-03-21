@@ -17,8 +17,6 @@ contract RoleManager is Initializable, AccessControlEnumerableUpgradeable {
     bytes32 public constant CURATOR_ROLE = keccak256("CURATOR_ROLE");
     
     // Events
-    event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender);
-    event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender);
     event AdminSet(address indexed previousAdmin, address indexed newAdmin);
     event CuratorSet(address indexed previousCurator, address indexed newCurator);
     
@@ -67,7 +65,6 @@ contract RoleManager is Initializable, AccessControlEnumerableUpgradeable {
         _setupRole(DEFAULT_ADMIN_ROLE, _newAdmin);
         
         emit AdminSet(previousAdmin, _newAdmin);
-        emit RoleGranted(ADMIN_ROLE, _newAdmin, msg.sender);
     }
     
     /**
@@ -92,7 +89,6 @@ contract RoleManager is Initializable, AccessControlEnumerableUpgradeable {
         _grantRole(CURATOR_ROLE, _curator);
         
         emit CuratorSet(previousCurator, _curator);
-        emit RoleGranted(CURATOR_ROLE, _curator, msg.sender);
     }
     
     /**
@@ -156,10 +152,11 @@ contract RoleManager is Initializable, AccessControlEnumerableUpgradeable {
     }
     
     /**
-     * @notice Get the current operator
-     * @return Address of the current operator
+     * @notice Get the operator
+     * @return Operator address
+     * @dev Make this function virtual so it can be overridden
      */
-    function getOperator() external view returns (address) {
+    function getOperator() external view virtual returns (address) {
         uint256 operatorCount = getRoleMemberCount(OPERATOR_ROLE);
         if (operatorCount == 0) {
             return address(0);

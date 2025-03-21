@@ -18,7 +18,7 @@ contract UpgradeBitcoinPodManager is Script {
         // Deploy new implementation
         bitcoinPodManager = new BitcoinPodManager();
 
-        bitcoinPodManager.initialize(_APP_REGISTRY, _MOTIF_STAKE_REGISTRY, _SERVICE_MANAGER);
+        bitcoinPodManager.initialize(_APP_REGISTRY, _MOTIF_STAKE_REGISTRY, _SERVICE_MANAGER, address(0));
 
         // initialize the new implementation
 

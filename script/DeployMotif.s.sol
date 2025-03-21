@@ -142,7 +142,7 @@ contract DeployMotif is Script {
         MotifStakeRegistry(address(motifStakeRegistryProxy)).initialize(address(serviceManagerProxy), thresholdWeight, quorum);
         // Initialize BitcoinPodManager
         BitcoinPodManager(address(bitcoinPodManagerProxy)).initialize(
-            address(appRegistry), address(motifStakeRegistryProxy), address(serviceManagerProxy)
+            address(appRegistry), address(motifStakeRegistryProxy), address(serviceManagerProxy), address(0)
         );
 
         motifStakeRegistry = MotifStakeRegistry(address(motifStakeRegistryProxy));

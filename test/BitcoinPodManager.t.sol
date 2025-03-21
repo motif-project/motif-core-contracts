@@ -157,7 +157,7 @@ contract BitcoinPodManagerTest is Test {
         appRegistry.initialize(testOwner);
         podManager = new BitcoinPodManager();
         serviceManager = _deployProxiedServiceManager();
-        podManager.initialize(address(appRegistry), address(motifStakeRegistry), address(serviceManager));
+        podManager.initialize(address(appRegistry), address(motifStakeRegistry), address(serviceManager), address(0));
         //  serviceManager = new MockServiceManager(address(podManager));
 
         // initialize strategy
