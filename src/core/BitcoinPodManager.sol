@@ -572,7 +572,7 @@ contract BitcoinPodManager is
     function verifyPresignedBitcoinDepositRequest(address pod, bytes32 transactionId, bytes memory transaction, uint256 amount) external 
     whenNotPaused
     nonReentrant
-    onlyMotifServiceManager
+    onlyPodOwner(pod)
     {
         // check if any request is pending
         require(_podToBitcoinDepositRequest[pod].isPending == false, "Request already pending");
@@ -581,9 +581,15 @@ contract BitcoinPodManager is
         _podToBitcoinDepositRequest[pod] = request;
         // get operator for the pod
         address operator = IBitcoinPod(pod).getOperator();
+        // set pod as inactive
+        IBitcoinPod(pod).setPodState(IBitcoinPod.PodState.Inactive);
         // add transaction to the pod 
         IBitcoinPod(pod).setSignedBitcoinWithdrawTransaction(transaction);
-        emit VerifyPresignedBitcoinDepositRequest(pod, operator, request, transaction);
+        // set pod as active
+        IBitcoinPod(pod).setPodState(IBitcoinPod.PodState.Active);
+        // get pod BTC address
+        string memory podBtcAddress = IBitcoinPod(pod).getBitcoinAddress();
+        emit VerifyPresignedBitcoinDepositRequest(pod, operator, podBtcAddress, request, transaction);
     }
 
     /**
