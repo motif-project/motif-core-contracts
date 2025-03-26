@@ -119,7 +119,7 @@ $ forge script script/DeployMotif.s.sol:DeployMotif --fork-url http://localhost:
 | AppRegistry                        | [0xe4FAb06cb45dE808894906146456c9f4D66Fad58](https://holesky.etherscan.io/address/0xe4FAb06cb45dE808894906146456c9f4D66Fad58) |
 | AppRegistryImplementation          | [0x78bf598b76c21c9095dfe2bed9d47e411720dac7](https://holesky.etherscan.io/address/0x78bf598b76c21c9095dfe2bed9d47e411720dac7) |
 | BitcoinPodManager                  | [0x033253C94884fdeB529857a66D06047384164525](https://holesky.etherscan.io/address/0x033253C94884fdeB529857a66D06047384164525) |
-| BitcoinPodManagerImplementation    | [0x0E91b79e104037D9032f2fCe85D0504D905249Cb](https://holesky.etherscan.io/address/0x0E91b79e104037D9032f2fCe85D0504D905249Cb) |
+| BitcoinPodManagerImplementation    | [0x4B7425ffE36Ca67083948788Df2053478597C230](https://holesky.etherscan.io/address/0x4B7425ffE36Ca67083948788Df2053478597C230) |
 
 Please see [Current Testnet Deployment](https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-testnet-deployment) for additional deployed addresses of core EigenLayer contracts.
 

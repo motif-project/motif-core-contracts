@@ -150,7 +150,7 @@ interface IBitcoinPodManager {
     );
 
     event VerifyPresignedBitcoinDepositRequest(
-        address indexed pod, address indexed operator, string indexed podBtcAddress, BitcoinDepositRequest bitcoinDepositRequest, bytes transaction 
+        address indexed pod, address indexed operator, string podBtcAddress, BitcoinDepositRequest bitcoinDepositRequest, bytes transaction 
     );
 
     event WithdrawPresignedBitcoinRequest(
