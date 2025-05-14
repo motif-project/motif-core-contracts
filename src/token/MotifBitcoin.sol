@@ -1,15 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import "./MotifBTC.sol";
+import "./reBTC.sol";
 
 /**
  * @title MotifBitcoin - Concrete implementation of MotifBTC
  * @notice Tracks the actual Bitcoin in the protocol and implements rebasing logic
  */
-contract MotifBitcoin is MotifBTC
+contract MotifBitcoin is reBTC
 {
     using SafeMathUpgradeable for uint256;
+
+    // ================ Constants ================
+    
+    /// @notice Minimum time between Bitcoin amount updates
+    uint256 public constant MIN_UPDATE_INTERVAL = 1 hours;
+    
+    /// @notice Maximum Bitcoin amount change per update
+    uint256 public constant MAX_AMOUNT_CHANGE = 1000 * 10**8; // 1,000 BTC
 
     // ================ Storage ================
     
@@ -18,6 +26,12 @@ contract MotifBitcoin is MotifBTC
     
     /// @notice Address authorized to update total pooled Bitcoin
     address public bitcoinReporter;
+
+    /// @notice Last update timestamp
+    uint256 private _lastUpdateTimestamp;
+    
+    /// @notice Last Bitcoin amount
+    uint256 private _lastBitcoinAmount;
 
     // ================ Events ================
     
@@ -43,6 +57,14 @@ contract MotifBitcoin is MotifBTC
         address indexed newReporter
     );
 
+    /// @notice Emitted when rate limit is exceeded
+    event RateLimitExceeded(
+        address indexed caller,
+        uint256 attemptedChange,
+        uint256 maxAllowedChange,
+        uint256 timestamp
+    );
+
     // ================ Initializer ================
     
     /**
@@ -62,6 +84,34 @@ contract MotifBitcoin is MotifBTC
         
         emit BitcoinReporterUpdated(address(0), _bitcoinReporter);
         emit TotalPooledBitcoinUpdated(0, initialBitcoin, msg.sender);
+    }
+
+    // ================ Modifiers ================
+    
+    /// @notice Modifier to enforce rate limiting
+    modifier rateLimited(uint256 newAmount) {
+        require(
+            block.timestamp >= _lastUpdateTimestamp + MIN_UPDATE_INTERVAL,
+            "Update too soon"
+        );
+        
+        uint256 change = newAmount > _lastBitcoinAmount 
+            ? newAmount - _lastBitcoinAmount 
+            : _lastBitcoinAmount - newAmount;
+        
+        if (change > MAX_AMOUNT_CHANGE) {
+            emit RateLimitExceeded(
+                msg.sender,
+                change,
+                MAX_AMOUNT_CHANGE,
+                block.timestamp
+            );
+            revert("Amount change too large");
+        }
+        
+        _;
+        _lastUpdateTimestamp = block.timestamp;
+        _lastBitcoinAmount = newAmount;
     }
 
     // ================ External Functions ================
@@ -86,6 +136,7 @@ contract MotifBitcoin is MotifBTC
     function updateTotalPooledBitcoin(uint256 _newTotalPooledBitcoin) 
         external 
         whenNotPaused 
+        rateLimited(_newTotalPooledBitcoin)
     {
         require(
             msg.sender == bitcoinReporter || hasRole(DEFAULT_ADMIN_ROLE, msg.sender),

@@ -9,11 +9,11 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 
 /**
- * @title MotifBTC - Rebasing token representing staked Bitcoin
+ * @title reBTC - Rebasing token representing staked Bitcoin
  * @notice Interest-bearing ERC20-like token for Motif Bitcoin Staking protocol
  * @dev This contract implements a share-based accounting system similar to Lido's StETH
  */
-contract MotifBTC is 
+contract reBTC is 
     Initializable, 
     IERC20Upgradeable, 
     AccessControlUpgradeable, 
@@ -55,6 +55,15 @@ contract MotifBTC is
     // Add a minimum initial deposit requirement
     uint256 public constant MINIMUM_INITIAL_DEPOSIT = 10**6; // 0.01 BTC
 
+    /// @notice Maximum allowed rebase percentage change
+    uint256 public constant MAX_REBASE_PERCENTAGE = 1000; // 10%
+
+    /// @notice Maximum allowed transfer amount
+    uint256 public constant MAX_TRANSFER_AMOUNT = 10000 * 10**8; // 10,000 BTC
+
+    /// @notice Circuit breaker cooldown period
+    uint256 public constant CIRCUIT_BREAKER_COOLDOWN = 1 days;
+
     // ================ Storage ================
 
     /// @notice Total shares in existence
@@ -68,6 +77,12 @@ contract MotifBTC is
 
     // Add gap for future storage variables
     uint256[50] private __gap;
+
+    /// @notice Last circuit breaker trigger timestamp
+    uint256 private _lastCircuitBreakerTrigger;
+
+    /// @notice Circuit breaker state
+    bool private _circuitBreakerActive;
 
     // ================ Events ================
 
@@ -120,6 +135,19 @@ contract MotifBTC is
         uint256 sharesMintedAsFees
     );
 
+    /// @notice Emitted when circuit breaker is triggered
+    event CircuitBreakerTriggered(
+        address indexed triggerer,
+        string reason,
+        uint256 timestamp
+    );
+
+    /// @notice Emitted when circuit breaker is reset
+    event CircuitBreakerReset(
+        address indexed resetter,
+        uint256 timestamp
+    );
+
     // ================ Initializer ================
 
     /// @notice Use constructor + initializer pattern
@@ -163,7 +191,7 @@ contract MotifBTC is
      * @return Token symbol
      */
     function symbol() external pure returns (string memory) {
-        return "motifBTC";
+        return "reBTC";
     }
     
     /**
@@ -456,8 +484,15 @@ contract MotifBTC is
         uint256 _preTotalBitcoin,
         uint256 _postTotalBitcoin,
         uint256 _sharesMintedAsFees
-    ) external onlyRole(REBASE_ROLE) {
+    ) external onlyRole(REBASE_ROLE) circuitBreakerCheck {
         uint256 preTotalShares = _getTotalShares();
+        
+        // Check for extreme rebase
+        uint256 percentageChange;
+        if (_preTotalBitcoin > 0) {
+            percentageChange = (_postTotalBitcoin * 10000) / _preTotalBitcoin;
+            require(percentageChange <= MAX_REBASE_PERCENTAGE, "Rebase percentage too high");
+        }
         
         // If shares were minted as fees, add them to the total
         if (_sharesMintedAsFees > 0) {
@@ -505,6 +540,29 @@ contract MotifBTC is
         emit TransferShares(address(0), INITIAL_TOKEN_HOLDER, _initialBitcoin);
     }
 
+    /**
+     * @notice Triggers the circuit breaker
+     * @param reason Reason for triggering the circuit breaker
+     */
+    function triggerCircuitBreaker(string memory reason) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _lastCircuitBreakerTrigger = block.timestamp;
+        _circuitBreakerActive = true;
+        emit CircuitBreakerTriggered(msg.sender, reason, block.timestamp);
+    }
+
+    /**
+     * @notice Resets the circuit breaker
+     */
+    function resetCircuitBreaker() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_circuitBreakerActive, "Circuit breaker not active");
+        require(
+            block.timestamp >= _lastCircuitBreakerTrigger + CIRCUIT_BREAKER_COOLDOWN,
+            "Cooldown period not elapsed"
+        );
+        _circuitBreakerActive = false;
+        emit CircuitBreakerReset(msg.sender, block.timestamp);
+    }
+
     // ================ Internal Functions ================
 
     /**
@@ -540,7 +598,8 @@ contract MotifBTC is
      * @param _recipient Recipient address
      * @param _amount Amount to transfer
      */
-    function _transfer(address _sender, address _recipient, uint256 _amount) internal {
+    function _transfer(address _sender, address _recipient, uint256 _amount) internal circuitBreakerCheck {
+        require(_amount <= MAX_TRANSFER_AMOUNT, "Transfer amount exceeds limit");
         uint256 _sharesToTransfer = getSharesByPooledBitcoin(_amount);
         _transferShares(_sender, _recipient, _sharesToTransfer);
         _emitTransferEvents(_sender, _recipient, _amount, _sharesToTransfer);
@@ -620,5 +679,13 @@ contract MotifBTC is
 
     function _setTotalShares(uint256 _amount) internal {
         _totalShares = _amount;
+    }
+
+    // ================ Modifiers ================
+
+    /// @notice Modifier to check circuit breaker state
+    modifier circuitBreakerCheck() {
+        require(!_circuitBreakerActive, "Circuit breaker active");
+        _;
     }
 }

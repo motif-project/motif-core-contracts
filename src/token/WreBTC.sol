@@ -7,6 +7,7 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/drafts/ERC20Permit.sol";
 import "./MotifBitcoin.sol";
 
 /**
@@ -18,7 +19,8 @@ contract WrappedMotifBitcoin is
     ERC20Upgradeable, 
     AccessControlUpgradeable, 
     PausableUpgradeable,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuardUpgradeable,
+    ERC20Permit
 {
     using SafeMathUpgradeable for uint256;
 
@@ -84,7 +86,7 @@ contract WrappedMotifBitcoin is
     function initialize(address admin, address _mBTC) public initializer {
         require(admin != address(0), "Admin cannot be zero address");
         require(_mBTC != address(0), "mBTC cannot be zero address");
-        __ERC20_init("Wrapped Motif Bitcoin", "wMBTC");
+        __ERC20_init("Wrapped Motif Bitcoin", "wreBTC");
         __AccessControl_init();
         __Pausable_init();
         __ReentrancyGuard_init();

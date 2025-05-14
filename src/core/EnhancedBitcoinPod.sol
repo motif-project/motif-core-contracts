@@ -10,6 +10,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol"
 import "../modules/FeeManager.sol";
 import "../interfaces/IBitcoinPod.sol";
 import "../interfaces/ITokenHub.sol";
+import "../interfaces/IRewardsDistributor.sol";
 
 /**
  * @title EnhancedBitcoinPod
@@ -39,6 +40,12 @@ contract EnhancedBitcoinPod is
     address public podManager;
     bool public isDelegatedToTokenHub;
     
+    // Rewards distributor
+    IRewardsDistributor public rewardsDistributor;
+    
+    // Rewards address for aggregating rewards
+    address public rewardsAddress;
+    
     // Token tracking
     IERC20Upgradeable public motifBitcoin;
     uint256 public podShares;
@@ -48,6 +55,16 @@ contract EnhancedBitcoinPod is
     
     // Strategy registry
     mapping(address => bool) public approvedStrategies;
+    
+    // Reward tracking
+    struct RewardToken {
+        address token;
+        uint256 totalRewards;
+        uint256 distributedRewards;
+    }
+    
+    mapping(address => RewardToken) public rewardTokens;
+    address[] public rewardTokenList;
     
     // Events
     event TokenHubSet(address tokenHub);
@@ -61,6 +78,11 @@ contract EnhancedBitcoinPod is
     event BitcoinBalanceUpdated(uint256 newBalance);
     event ERC20Recovered(address indexed token, address indexed to, uint256 amount);
     event ERC721Recovered(address indexed token, address indexed to, uint256 tokenId);
+    event RewardTokenAdded(address indexed token);
+    event RewardTokenRemoved(address indexed token);
+    event RewardsDistributed(address indexed token, uint256 amount);
+    event RewardsAddressSet(address indexed rewardsAddress);
+    event RewardsDistributorSet(address indexed rewardsDistributor);
     
     /**
      * @notice Initialize the EnhancedBitcoinPod
@@ -519,6 +541,174 @@ contract EnhancedBitcoinPod is
         bytes calldata
     ) external pure override returns (bytes4) {
         return this.onERC721Received.selector;
+    }
+    
+    /**
+     * @notice Add a reward token
+     * @param _token Address of the reward token
+     * @dev Only callable by admin
+     */
+    function addRewardToken(address _token) external onlyRole(ADMIN_ROLE) {
+        require(_token != address(0), "Token cannot be zero address");
+        require(rewardTokens[_token].token == address(0), "Token already added");
+        
+        rewardTokens[_token] = RewardToken({
+            token: _token,
+            totalRewards: 0,
+            distributedRewards: 0
+        });
+        
+        rewardTokenList.push(_token);
+        
+        emit RewardTokenAdded(_token);
+    }
+    
+    /**
+     * @notice Remove a reward token
+     * @param _token Address of the reward token
+     * @dev Only callable by admin
+     */
+    function removeRewardToken(address _token) external onlyRole(ADMIN_ROLE) {
+        require(rewardTokens[_token].token != address(0), "Token not found");
+        require(rewardTokens[_token].totalRewards == rewardTokens[_token].distributedRewards, "Rewards not fully distributed");
+        
+        // Remove from mapping
+        delete rewardTokens[_token];
+        
+        // Remove from array
+        for (uint256 i = 0; i < rewardTokenList.length; i++) {
+            if (rewardTokenList[i] == _token) {
+                rewardTokenList[i] = rewardTokenList[rewardTokenList.length - 1];
+                rewardTokenList.pop();
+                break;
+            }
+        }
+        
+        emit RewardTokenRemoved(_token);
+    }
+    
+    /**
+     * @notice Set the rewards address
+     * @param _rewardsAddress Address to aggregate rewards
+     * @dev Only callable by admin
+     */
+    function setRewardsAddress(address _rewardsAddress) external onlyRole(ADMIN_ROLE) {
+        require(_rewardsAddress != address(0), "Rewards address cannot be zero");
+        rewardsAddress = _rewardsAddress;
+        emit RewardsAddressSet(_rewardsAddress);
+    }
+    
+    /**
+     * @notice Set the rewards distributor address
+     * @param _rewardsDistributor Address of the rewards distributor
+     * @dev Only callable by admin
+     */
+    function setRewardsDistributor(address _rewardsDistributor) external onlyRole(ADMIN_ROLE) {
+        require(_rewardsDistributor != address(0), "Rewards distributor cannot be zero");
+        rewardsDistributor = IRewardsDistributor(_rewardsDistributor);
+        emit RewardsDistributorSet(_rewardsDistributor);
+    }
+    
+    /**
+     * @notice Report rewards from a strategy
+     * @param _token Address of the reward token
+     * @param _amount Amount of rewards
+     * @dev Only callable by approved strategies
+     */
+    function reportRewards(address _token, uint256 _amount) external whenNotPaused nonReentrant {
+        require(approvedStrategies[msg.sender], "Not an approved strategy");
+        require(rewardTokens[_token].token != address(0), "Token not supported");
+        require(_amount > 0, "Amount must be greater than 0");
+        require(rewardsAddress != address(0), "Rewards address not set");
+        require(address(rewardsDistributor) != address(0), "Rewards distributor not set");
+        
+        // Update reward tracking
+        rewardTokens[_token].totalRewards += _amount;
+        
+        // Calculate and distribute fees
+        uint256 feeAmount = (_amount * getTotalFeeBP()) / TOTAL_BASIS_POINTS;
+        
+        // Transfer tokens to rewards address
+        IERC20Upgradeable(_token).safeTransferFrom(msg.sender, rewardsAddress, _amount);
+        
+        // Distribute fees
+        _distributeFees(_token, feeAmount);
+        
+        emit YieldReported(_amount);
+    }
+    
+    /**
+     * @notice Notify rewards distributor about new rewards
+     * @param _token Address of the reward token
+     * @param _amount Amount of rewards
+     * @param _merkleRoot Root of the Merkle tree for claim process (optional)
+     * @param _airdropAddress Address to receive airdrop (optional)
+     * @dev Only callable by admin or operator
+     */
+    function notifyRewards(
+        address _token,
+        uint256 _amount,
+        bytes32 _merkleRoot,
+        address _airdropAddress
+    ) external whenNotPaused nonReentrant {
+        require(
+            hasRole(ADMIN_ROLE, msg.sender) || 
+            hasRole(OPERATOR_ROLE, msg.sender), 
+            "Not authorized"
+        );
+        require(rewardTokens[_token].token != address(0), "Token not supported");
+        require(_amount > 0, "Amount must be greater than 0");
+        require(
+            _amount <= rewardTokens[_token].totalRewards - rewardTokens[_token].distributedRewards,
+            "Insufficient rewards"
+        );
+        require(rewardsAddress != address(0), "Rewards address not set");
+        require(address(rewardsDistributor) != address(0), "Rewards distributor not set");
+        require(_merkleRoot != bytes32(0) || _airdropAddress != address(0), "Must specify either Merkle root or airdrop address");
+        
+        // Update distributed rewards
+        rewardTokens[_token].distributedRewards += _amount;
+        
+        // Transfer rewards from rewards address to rewards distributor
+        IERC20Upgradeable(_token).safeTransferFrom(rewardsAddress, address(rewardsDistributor), _amount);
+        
+        // Notify rewards distributor
+        rewardsDistributor.notifyRewards(
+            _token,
+            _amount,
+            _merkleRoot,
+            _airdropAddress
+        );
+        
+        emit RewardsDistributed(_token, _amount);
+    }
+    
+    /**
+     * @notice Get reward token information
+     * @param _token Address of the reward token
+     * @return token Token address
+     * @return totalRewards Total rewards collected
+     * @return distributedRewards Rewards already distributed
+     */
+    function getRewardTokenInfo(address _token) external view returns (
+        address token,
+        uint256 totalRewards,
+        uint256 distributedRewards
+    ) {
+        RewardToken memory rewardToken = rewardTokens[_token];
+        return (
+            rewardToken.token,
+            rewardToken.totalRewards,
+            rewardToken.distributedRewards
+        );
+    }
+    
+    /**
+     * @notice Get list of reward tokens
+     * @return List of reward token addresses
+     */
+    function getRewardTokenList() external view returns (address[] memory) {
+        return rewardTokenList;
     }
     
     /**
