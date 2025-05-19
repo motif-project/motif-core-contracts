@@ -7,14 +7,14 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/drafts/ERC20Permit.sol";
-import "./MotifBitcoin.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20Permit.sol";
+import "./reBTC.sol";
 
 /**
- * @title WrappedMotifBitcoin - Non-rebasing wrapper for MotifBitcoin
- * @notice Provides a fixed-balance ERC20 wrapper around the rebasing MotifBitcoin token
+ * @title WrappedReBTC
+ * @notice Non-rebasing wrapper token for the rebasing reBTC token.
  */
-contract WrappedMotifBitcoin is 
+contract WrappedReBTC is 
     Initializable, 
     ERC20Upgradeable, 
     AccessControlUpgradeable, 
@@ -34,196 +34,156 @@ contract WrappedMotifBitcoin is
 
     // ================ Storage ================
     
-    /// @notice Reference to the MotifBitcoin token
-    MotifBitcoin public mBTC;
+    /// @notice Reference to the reBTC token
+    reBTC public reBTC;
     
-    /// @notice Tracks the shares corresponding to each wrapped token
-    mapping(address => uint256) private wrappedShares;
-    
-    /// @notice Total shares wrapped in this contract
-    uint256 private totalWrappedShares;
-
     // Add gap for future storage variables
     uint256[50] private __gap;
+
+    // Keep blacklist functionality as it's useful for security
+    mapping(address => bool) private _blacklisted;
 
     // ================ Events ================
     
     /**
      * @notice Emitted when tokens are wrapped
      * @param account User who wrapped tokens
-     * @param mBTCAmount Amount of mBTC wrapped
-     * @param wMBTCAmount Amount of wMBTC received
-     * @param sharesAmount Amount of shares wrapped
+     * @param reBTCAmount Amount of reBTC wrapped
+     * @param wrapReBTCAmount Amount of wrapReBTC received
      */
     event TokensWrapped(
         address indexed account,
-        uint256 mBTCAmount,
-        uint256 wMBTCAmount,
-        uint256 sharesAmount
+        uint256 reBTCAmount,
+        uint256 wrapReBTCAmount
     );
     
     /**
      * @notice Emitted when tokens are unwrapped
      * @param account User who unwrapped tokens
-     * @param wMBTCAmount Amount of wMBTC unwrapped
-     * @param mBTCAmount Amount of mBTC received
-     * @param sharesAmount Amount of shares unwrapped
+     * @param reBTCAmount Amount of reBTC unwrapped
+     * @param unwrapReBTCAmount Amount of unwrapReBTC received
      */
     event TokensUnwrapped(
         address indexed account,
-        uint256 wMBTCAmount,
-        uint256 mBTCAmount,
-        uint256 sharesAmount
+        uint256 reBTCAmount,
+        uint256 unwrapReBTCAmount
     );
+
+    event AccountBlacklisted(address indexed account);
+    event EmergencyPaused(address indexed pauser);
 
     // ================ Initializer ================
     
     /**
      * @notice Initializes the contract
-     * @param admin Address that will have admin role
-     * @param _mBTC Address of the MotifBitcoin token
+     * @param name_ Name of the token
+     * @param symbol_ Symbol of the token
+     * @param admin_ Address that will have admin role
+     * @param _reBTC Address of the reBTC token
      */
-    function initialize(address admin, address _mBTC) public initializer {
-        require(admin != address(0), "Admin cannot be zero address");
-        require(_mBTC != address(0), "mBTC cannot be zero address");
-        __ERC20_init("Wrapped Motif Bitcoin", "wreBTC");
+    function initialize(
+        string memory name_,
+        string memory symbol_,
+        address admin_,
+        address _reBTC
+    ) public initializer {
+        require(admin_ != address(0), "Admin cannot be zero address");
+        require(_reBTC != address(0), "mBTC cannot be zero address");
+
+        __ERC20_init(name_, symbol_);
+        __ERC20Permit_init(name_);
         __AccessControl_init();
         __Pausable_init();
         __ReentrancyGuard_init();
         
-        _setupRole(DEFAULT_ADMIN_ROLE, admin);
-        _setupRole(PAUSE_ROLE, admin);
-        _setupRole(RESUME_ROLE, admin);
+        _setupRole(DEFAULT_ADMIN_ROLE, admin_);
+        _setupRole(PAUSE_ROLE, admin_);
+        _setupRole(RESUME_ROLE, admin_);
         
-        mBTC = MotifBitcoin(_mBTC);
+        reBTC = reBTC(_reBTC);
     }
 
     // ================ External Functions ================
     
     /**
-     * @notice Wraps mBTC tokens to receive wMBTC
-     * @param _mBTCAmount Amount of mBTC to wrap
-     * @return Amount of wMBTC received
+     * @notice Wraps reBTC tokens to receive wrapReBTC
+     * @param _reBTCAmount Amount of reBTC to wrap
+     * @return Amount of wrapReBTC received
      */
-    function wrap(uint256 _mBTCAmount) 
+    function wrap(uint256 _reBTCAmount) 
         external 
         whenNotPaused 
+        whenNotBlacklisted(msg.sender)
         nonReentrant 
+        validAmount(_reBTCAmount)
         returns (uint256) 
     {
-        require(_mBTCAmount > 0, "Amount must be greater than 0");
+        require(_reBTCAmount > 0, "Amount must be greater than 0");
         
-        uint256 balanceBefore = mBTC.balanceOf(address(this));
+        // Transfer reBTC to this contract
         require(
-            mBTC.transferFrom(msg.sender, address(this), _mBTCAmount),
-            "mBTC transfer failed"
-        );
-        uint256 balanceAfter = mBTC.balanceOf(address(this));
-        require(
-            balanceAfter == balanceBefore.add(_mBTCAmount),
-            "Transfer amount mismatch"
+            reBTC.transferFrom(msg.sender, address(this), _reBTCAmount),
+            "reBTC transfer failed"
         );
         
-        // Calculate shares equivalent to mBTC amount
-        uint256 sharesToWrap = mBTC.getSharesByPooledBitcoin(_mBTCAmount);
+        // Mint 1:1 WreBTC
+        _mint(msg.sender, _reBTCAmount);
         
-        // Calculate wMBTC amount to mint (1:1 with mBTC)
-        uint256 wMBTCToMint = _mBTCAmount;
+        emit TokensWrapped(msg.sender, _reBTCAmount, _reBTCAmount);
         
-        // Update wrapped shares for user
-        wrappedShares[msg.sender] = wrappedShares[msg.sender].add(sharesToWrap);
-        totalWrappedShares = totalWrappedShares.add(sharesToWrap);
-        
-        // Mint wMBTC to user
-        _mint(msg.sender, wMBTCToMint);
-        
-        emit TokensWrapped(msg.sender, _mBTCAmount, wMBTCToMint, sharesToWrap);
-        
-        return wMBTCToMint;
+        return _reBTCAmount;
     }
     
     /**
-     * @notice Unwraps wMBTC tokens to receive mBTC
-     * @param _wMBTCAmount Amount of wMBTC to unwrap
-     * @return Amount of mBTC received
+     * @notice Unwraps wrapReBTC tokens to receive reBTC
+     * @param _wrapReBTCAmount Amount of wrapReBTC to unwrap
+     * @return Amount of reBTC received
      */
-    function unwrap(uint256 _wMBTCAmount) 
+    function unwrap(uint256 _wrapReBTCAmount) 
         external 
         whenNotPaused 
+        whenNotBlacklisted(msg.sender)
         nonReentrant 
+        validAmount(_wrapReBTCAmount)
         returns (uint256) 
     {
-        require(_wMBTCAmount > 0, "Amount must be greater than 0");
-        require(balanceOf(msg.sender) >= _wMBTCAmount, "Insufficient wMBTC balance");
+        require(_wrapReBTCAmount > 0, "Amount must be greater than 0");
+        require(balanceOf(msg.sender) >= _wrapReBTCAmount, "Insufficient wrapReBTC balance");
         
-        // Calculate proportion of shares to unwrap
-        uint256 userWrappedShares = wrappedShares[msg.sender];
-        uint256 userWMBTCBalance = balanceOf(msg.sender);
+        // Burn WreBTC
+        _burn(msg.sender, _wrapReBTCAmount);
         
-        uint256 sharesToUnwrap = userWrappedShares.mul(_wMBTCAmount).div(userWMBTCBalance);
-        
-        // Calculate mBTC amount based on current share value
-        uint256 mBTCToReturn = mBTC.getPooledBitcoinByShares(sharesToUnwrap);
-        
-        // Update wrapped shares for user
-        wrappedShares[msg.sender] = wrappedShares[msg.sender].sub(sharesToUnwrap);
-        totalWrappedShares = totalWrappedShares.sub(sharesToUnwrap);
-        
-        // Burn wMBTC from user
-        _burn(msg.sender, _wMBTCAmount);
-        
-        // Transfer mBTC to user
+        // Transfer reBTC back to user
         require(
-            mBTC.transfer(msg.sender, mBTCToReturn),
-            "mBTC transfer failed"
+            reBTC.transfer(msg.sender, _wrapReBTCAmount),
+            "reBTC transfer failed"
         );
         
-        emit TokensUnwrapped(msg.sender, _wMBTCAmount, mBTCToReturn, sharesToUnwrap);
+        emit TokensUnwrapped(msg.sender, _wrapReBTCAmount, _wrapReBTCAmount);
         
-        return mBTCToReturn;
+        return _wrapReBTCAmount;
     }
     
     /**
-     * @notice Returns the amount of mBTC that would be received for unwrapping
-     * @param _wMBTCAmount Amount of wMBTC to unwrap
+     * @notice Returns the amount of reBTC that would be received for unwrapping
+     * @param _wrapReBTCAmount Amount of wrapReBTC to unwrap
      * @param _account Account to check for
-     * @return Amount of mBTC that would be received
+     * @return Amount of reBTC that would be received
      */
-    function getUnwrapAmount(uint256 _wMBTCAmount, address _account) external view returns (uint256) {
-        if (_wMBTCAmount == 0 || balanceOf(_account) == 0) {
+    function getUnwrapAmount(uint256 _wrapReBTCAmount, address _account) external view returns (uint256) {
+        if (_wrapReBTCAmount == 0 || balanceOf(_account) == 0) {
             return 0;
         }
         
-        uint256 userWrappedShares = wrappedShares[_account];
-        uint256 userWMBTCBalance = balanceOf(_account);
-        
-        uint256 sharesToUnwrap = userWrappedShares.mul(_wMBTCAmount).div(userWMBTCBalance);
-        return mBTC.getPooledBitcoinByShares(sharesToUnwrap);
+        return _wrapReBTCAmount;
     }
     
     /**
      * @notice Returns the total amount of mBTC held by this contract
      * @return Total mBTC balance
      */
-    function getTotalWrappedMBTC() external view returns (uint256) {
-        return mBTC.balanceOf(address(this));
-    }
-    
-    /**
-     * @notice Returns the total shares wrapped in this contract
-     * @return Total wrapped shares
-     */
-    function getTotalWrappedShares() external view returns (uint256) {
-        return totalWrappedShares;
-    }
-    
-    /**
-     * @notice Returns the shares wrapped by a specific account
-     * @param _account Account to check
-     * @return Wrapped shares
-     */
-    function getWrappedShares(address _account) external view returns (uint256) {
-        return wrappedShares[_account];
+    function getTotalWrappedReBTC() external view returns (uint256) {
+        return reBTC.balanceOf(address(this));
     }
     
     /**
@@ -258,6 +218,10 @@ contract WrappedMotifBitcoin is
         IERC20Upgradeable(_token).transfer(_recipient, _amount);
     }
 
+    function isBlacklisted(address account) external view returns (bool) {
+        return _blacklisted[account];
+    }
+
     // ================ Internal Functions ================
     
     /**
@@ -266,5 +230,44 @@ contract WrappedMotifBitcoin is
      */
     function decimals() public pure override returns (uint8) {
         return 8; // Bitcoin uses 8 decimals
+    }
+
+    // Keep emergency pause
+    function emergencyPause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
+    }
+
+    modifier whenNotBlacklisted(address account) {
+        require(!_blacklisted[account], "Account is blacklisted");
+        _;
+    }
+
+    function blacklist(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _blacklisted[account] = true;
+    }
+
+    modifier validAmount(uint256 amount) {
+        require(amount > 0, "Amount must be greater than 0");
+        _;
+    }
+
+    function transfer(address recipient, uint256 amount) 
+        public 
+        override 
+        whenNotBlacklisted(msg.sender)
+        whenNotBlacklisted(recipient)
+        returns (bool) 
+    {
+        return super.transfer(recipient, amount);
+    }
+
+    function transferFrom(address sender, address recipient, uint256 amount) 
+        public 
+        override 
+        whenNotBlacklisted(sender)
+        whenNotBlacklisted(recipient)
+        returns (bool) 
+    {
+        return super.transferFrom(sender, recipient, amount);
     }
 }
