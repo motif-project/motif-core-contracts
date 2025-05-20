@@ -3,8 +3,8 @@ pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "../interfaces/IBitcoinPodManager.sol";
 import "../interfaces/IAppRegistry.sol";
 import "../interfaces/IMotifStakeRegistry.sol";
@@ -14,7 +14,7 @@ import "../storage/BitcoinPodManagerStorage.sol";
 import "./BitcoinPod.sol";
 import "./EnhancedBitcoinPod.sol";
 import "../interfaces/IMotifServiceManager.sol";
-import "forge-std/console.sol";
+//import "forge-std/console.sol";
 import "../libraries/BitcoinUtils.sol";
 /**
  * @title BitcoinPodManager
@@ -120,7 +120,7 @@ contract BitcoinPodManager is
         address motifServiceManager_,
         address tokenHub_
     ) public initializer {
-        __Ownable_init();
+        __Ownable_init(msg.sender);
         __Pausable_init();
         __ReentrancyGuard_init();
         _appRegistry = appRegistry_;

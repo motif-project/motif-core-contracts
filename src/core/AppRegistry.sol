@@ -3,8 +3,8 @@ pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "../Interfaces/IAppRegistry.sol";
 import "../libraries/EIP1271SignatureUtils.sol";
 
@@ -39,28 +39,28 @@ contract AppRegistry is
     // @notice Mapping of app address and salt to usage status
     mapping(address => mapping(bytes32 => bool)) public appSaltIsSpent;
     // @notice EIP-712 typehash for app registration
-    bytes32 private constant APP_REGISTRATION_TYPEHASH =
+    bytes32 private constant _APP_REGISTRATION_TYPEHASH =
         keccak256("AppRegistration(address app,address appRegistry, bytes32 salt,uint256 expiry)");
     // @notice EIP-712 typehash for domain separator
-    bytes32 private constant DOMAIN_TYPEHASH =
+    bytes32 private constant _DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
     // @notice Unique domain separator for this contract instance
-    bytes32 private DOMAIN_SEPARATOR;
+    bytes32 private _DOMAIN_SEPARATOR;
     /**
      * @notice Maximum length for metadata URI
      */
-    uint256 constant MAX_METADATA_URI_LENGTH = 2048;
+    uint256 private constant _MAX_METADATA_URI_LENGTH = 2048;
     /**
      * @notice Minimum time before expiry (1 hour)
      */
-    uint256 constant MIN_EXPIRY_DURATION = 5 minutes;
+    uint256 private constant _MIN_EXPIRY_DURATION = 5 minutes;
     /**
      * @notice Constructor to initialize the domain separator
      */
 
     constructor() {
-        DOMAIN_SEPARATOR =
-            keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes("MOTIF")), block.chainid, address(this)));
+        _DOMAIN_SEPARATOR =
+            keccak256(abi.encode(_DOMAIN_TYPEHASH, keccak256(bytes("MOTIF")), block.chainid, address(this)));
     }
 
     /**
@@ -72,10 +72,9 @@ contract AppRegistry is
      * - Transfers ownership to initialOwner
      */
     function initialize(address initialOwner) external initializer {
-        __Ownable_init();
+        __Ownable_init(initialOwner);
         __Pausable_init();
         __ReentrancyGuard_init();
-        transferOwnership(initialOwner);
         totalAppsRegistered = 0;
     }
 
@@ -95,7 +94,7 @@ contract AppRegistry is
         nonReentrant
     {
         if (app == address(0)) revert ZeroAddress();
-        if (expiry < block.timestamp + MIN_EXPIRY_DURATION) revert SignatureExpired();
+        if (expiry < block.timestamp + _MIN_EXPIRY_DURATION) revert SignatureExpired();
         if (appStatus[app] != AppRegistrationStatus.UNREGISTERED) revert AppAlreadyRegistered();
         if (appSaltIsSpent[app][salt]) revert SaltAlreadySpent();
 
@@ -152,7 +151,7 @@ contract AppRegistry is
      */
     function updateAppMetadataURI(string calldata metadataURI) external override {
         if (appStatus[msg.sender] != AppRegistrationStatus.REGISTERED) revert AppNotRegistered();
-        if (bytes(metadataURI).length > MAX_METADATA_URI_LENGTH) revert InvalidMetadataURILength();
+        if (bytes(metadataURI).length > _MAX_METADATA_URI_LENGTH) revert InvalidMetadataURILength();
         if (bytes(metadataURI).length == 0) revert InvalidMetadataURILength();
         emit AppMetadataURIUpdated(msg.sender, metadataURI);
     }
@@ -168,8 +167,8 @@ contract AppRegistry is
         if (appRegistry == address(0)) revert ZeroAddress();
         if (app == address(0)) revert ZeroAddress();
 
-        bytes32 structHash = keccak256(abi.encode(APP_REGISTRATION_TYPEHASH, app, appRegistry, salt, expiry));
-        return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
+        bytes32 structHash = keccak256(abi.encode(_APP_REGISTRATION_TYPEHASH, app, appRegistry, salt, expiry));
+        return keccak256(abi.encodePacked("\x19\x01", _DOMAIN_SEPARATOR, structHash));
     }
 
     /**

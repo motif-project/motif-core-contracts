@@ -2,7 +2,7 @@
 pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "../interfaces/IBitcoinPod.sol";
 
 /**
@@ -37,7 +37,7 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable, ReentrancyGuardUpgradeab
     address public immutable manager;
     bytes public signedBitcoinWithdrawTransaction;
     PodState public podState;
-    uint256 private constant MAX_TX_SIZE = 1024 * 100; // 100KB max transaction size
+    uint256 private constant _MAX_TX_SIZE = 1024 * 100; // 100KB max transaction size
 
     /**
      * @notice Modifier to ensure the pod is active before execution
@@ -93,9 +93,8 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable, ReentrancyGuardUpgradeab
         require(_operator != address(0), "Operator cannot be the zero address");
         require(_owner != address(0), "Owner cannot be the zero address");
 
-        __Ownable_init();
+        __Ownable_init(_owner);
         __ReentrancyGuard_init();
-        _transferOwnership(_owner);
         operator = _operator;
         operatorBtcPubKey = _operatorBtcPubKey;
         bitcoinAddress = _btcAddress;
@@ -137,7 +136,7 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable, ReentrancyGuardUpgradeab
     {
         require(_signedBitcoinWithdrawTransaction.length > 0, "Signed transaction cannot be empty");
         require(podState == PodState.Inactive, "Pod is not inactive");
-        require(_signedBitcoinWithdrawTransaction.length <= MAX_TX_SIZE, "Signed transaction exceeds max size");
+        require(_signedBitcoinWithdrawTransaction.length <= _MAX_TX_SIZE, "Signed transaction exceeds max size");
         signedBitcoinWithdrawTransaction = _signedBitcoinWithdrawTransaction;
         emit WithdrawTransactionSet(_signedBitcoinWithdrawTransaction);
     }

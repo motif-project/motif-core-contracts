@@ -4,8 +4,8 @@ pragma solidity 0.8.25;
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
@@ -20,7 +20,7 @@ contract ReBTC is
     ReentrancyGuardUpgradeable,
     PausableUpgradeable
 {
-    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+    bytes32 public constant OPERATOR_ROLE = keccak256("TOKENHUB_ROLE");
     bytes32 public constant REBASER_ROLE = keccak256("REBASER_ROLE");
 
     uint256 private _totalShares;
@@ -67,7 +67,7 @@ contract ReBTC is
         return true;
     }
 
-    function _transfer(address sender, address recipient, uint256) internal pure override {
+    function _transfer(address, address, uint256) internal pure override {
         // Disable base ERC20 logic since we override transfer
         revert("Use _transferShares instead");
     }
@@ -79,7 +79,7 @@ contract ReBTC is
         emit Transfer(sender, recipient, (_totalPooledBTC * shareAmount) / _totalShares);
     }
 
-    function mint(address account, uint256 btcAmount) external onlyRole(OPERATOR_ROLE) whenNotPaused {
+    function mint(address account, uint256 btcAmount) external onlyRole(TOKENHUB_ROLE) whenNotPaused {
         uint256 sharesToMint = _btcToShares(btcAmount);
         _totalShares += sharesToMint;
         _shares[account] += sharesToMint;
@@ -87,7 +87,7 @@ contract ReBTC is
         emit Transfer(address(0), account, btcAmount);
     }
 
-    function burn(address account, uint256 btcAmount) external onlyRole(OPERATOR_ROLE) whenNotPaused {
+    function burn(address account, uint256 btcAmount) external onlyRole(TOKENHUB_ROLE) whenNotPaused {
         uint256 sharesToBurn = _btcToShares(btcAmount);
         _shares[account] -= sharesToBurn;
         _totalShares -= sharesToBurn;
