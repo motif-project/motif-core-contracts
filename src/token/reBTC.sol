@@ -53,15 +53,33 @@ contract ReBTC is
 
     // ========================= Core Logic =========================
 
+    /*
+    * @notice Total supply function to get the total supply of the token
+    * @dev This function is overridden to return the total pooled BTC scaled to 18 decimal precision
+    * @return The total supply of the token
+    */  
     function totalSupply() public view override returns (uint256) {
         return _totalPooledBTC;
     }
 
+    /*
+    * @notice Balance of function to get the balance of an address
+    * @dev This function is overridden to return the balance of an address in amount of reBTC
+    * @param account The address to get the balance of
+    * @return The balance of the address in amount of reBTC
+    */
     function balanceOf(address account) public view override returns (uint256) {
         if (_totalShares == 0) return 0;
         return (_shares[account] * _totalPooledBTC) / _totalShares;
     }
 
+    /*
+    * @notice Transfer function to transfer tokens
+    * @dev This function is overridden to transfer tokens using shares
+    * @param recipient The address to transfer the tokens to
+    * @param amount The amount of tokens to transfer
+    * @return True if the transfer was successful
+    */
     function transfer(address recipient, uint256 amount) 
         public 
         override 
@@ -77,11 +95,21 @@ contract ReBTC is
         return true;
     }
 
+    /*
+    * @notice Transfer function to transfer tokens
+    * @dev This function is overridden to stop the base ERC20 transfer function
+    */
     function _transfer(address , address , uint256) internal pure override {
         // Disable base ERC20 logic since we override transfer
         revert("Use _transferShares instead");
     }
 
+    /*
+    * @notice Transfer function to transfer shares
+    * @param sender The address to transfer the shares from
+    * @param recipient The address to transfer the shares to
+    * @param shareAmount The amount of shares to transfer
+    */
     function _transferShares(address sender, address recipient, uint256 shareAmount) internal {
         require(sender != address(0), "TRANSFER_FROM_ZERO_ADDR");
         require(recipient != address(0), "TRANSFER_TO_ZERO_ADDR");
@@ -95,6 +123,12 @@ contract ReBTC is
         emit Transfer(sender, recipient, (_totalPooledBTC * shareAmount) / _totalShares);
     }
 
+    /*
+    * @notice Mint function to mint tokens
+    * @dev This function is only callable by the TOKENHUB_ROLE
+    * @param account The address to mint the tokens to
+    * @param btcAmount The amount of BTC scaled to 18 decimal precision to mint
+    */
     function mint(address account, uint256 btcAmount) external onlyRole(TOKENHUB_ROLE) whenNotPaused {
         uint256 sharesToMint = _btcToShares(btcAmount);
         _totalShares += sharesToMint;
@@ -103,6 +137,12 @@ contract ReBTC is
         emit Transfer(address(0), account, btcAmount);
     }
 
+    /*
+    * @notice Burn function to burn tokens
+    * @dev This function is only callable by the TOKENHUB_ROLE
+    * @param account The address to burn the tokens from
+    * @param btcAmount The amount of BTC scaled to 18 decimal precision to burn
+    */
     function burn(address account, uint256 btcAmount) external onlyRole(TOKENHUB_ROLE) whenNotPaused {
         uint256 sharesToBurn = _btcToShares(btcAmount);
         _shares[account] -= sharesToBurn;
@@ -111,6 +151,12 @@ contract ReBTC is
         emit Transfer(account, address(0), btcAmount);
     }
 
+    /*
+    * @notice Burn function to burn shares
+    * @dev This function is only callable by the TOKENHUB_ROLE
+    * @param account The address to burn the shares from
+    * @param shares The amount of shares to burn
+    */
     function burnShares(address account, uint256 shares) external onlyRole(TOKENHUB_ROLE) whenNotPaused {
         // check if shares is greater than zero and less than or equal to the balance of the account
         require(shares > 0 && _shares[account] >= shares, "Invalid shares");
@@ -119,6 +165,11 @@ contract ReBTC is
         emit Transfer(account, address(0), shares);
     }
 
+    /*
+    * @notice Update total pooled BTC function to update the total pooled BTC
+    * @dev This function is only callable by the REBASER_ROLE
+    * @param newTotal The new total pooled BTC
+    */
     function updateTotalPooledBTC(uint256 newTotal) external onlyRole(REBASER_ROLE) whenNotPaused {
         require(newTotal > 0, "Invalid BTC total");
         
@@ -157,24 +208,44 @@ contract ReBTC is
         return _totalPooledBTC;
     }
 
+    /*
+    * @notice Convert BTC to shares
+    * @param btcAmount The amount of BTC scaled to 18 decimal precision to convert to shares
+    * @return The amount of shares
+    */
     function btcToShares(uint256 btcAmount) external view returns (uint256) {
         // return zero if btcAmount is zero
         if (btcAmount == 0) return 0;
         return _btcToShares(btcAmount);
     }
 
+    /*
+    * @notice Convert shares to BTC
+    * @param shares The amount of shares to convert to BTC
+    * @return The amount of BTC
+    */
     function sharesToBTC(uint256 shares) external view returns (uint256) {
         // return zero if shares is zero
         if (shares == 0) return 0;
         return _sharesToBTC(shares);
     }
 
+    /*
+    * @notice Convert shares to BTC
+    * @param shares The amount of shares to convert to BTC
+    * @return The amount of BTC
+    */
     function _sharesToBTC(uint256 shares) internal view returns (uint256) {
         return (_totalShares == 0 || _totalPooledBTC == 0)
             ? shares
             : (shares * _totalPooledBTC) / _totalShares;
     }
 
+    /*
+    * @notice Convert BTC to shares
+    * @param btcAmount The amount of BTC scaled to 18 decimal precision to convert to shares
+    * @return The amount of shares
+    */
     function _btcToShares(uint256 btcAmount) internal view returns (uint256) {
         return (_totalShares == 0 || _totalPooledBTC == 0)
             ? btcAmount
@@ -183,21 +254,40 @@ contract ReBTC is
 
     // ========================= Additional Functions =========================
 
+    /*
+    * @notice Emergency pause function to pause the token
+    * @dev This function is only callable by the DEFAULT_ADMIN_ROLE
+    */
     function emergencyPause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _pause();
+    }
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
     }
 
     mapping(address => bool) private _blacklisted;
 
+    /*
+    * @notice Blacklist function to blacklist an address
+    * @dev This function is only callable by the DEFAULT_ADMIN_ROLE
+    */
     function blacklist(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _blacklisted[account] = true;
-    }
+    }   
 
+    /*
+    * @notice Blacklist function to blacklist an address
+    * @dev This function is only callable by the DEFAULT_ADMIN_ROLE
+    */
     modifier whenNotBlacklisted(address account) {
         require(!_blacklisted[account], "Account is blacklisted");
         _;
     }
 
+    /*
+    * @notice Transfer function to transfer tokens
+    * @dev This function is only callable when the token is not paused and the sender and recipient are not blacklisted
+    */
     function transferFrom(address sender, address recipient, uint256 amount) 
         public 
         override 
@@ -222,6 +312,10 @@ contract ReBTC is
         return true;
     }
 
+    /*
+    * @notice Approve function to allow for ERC20 approvals
+    * @dev This function is only callable when the token is not paused and the owner and spender are not blacklisted
+    */
     function approve(address spender, uint256 amount) 
         public 
         override 
@@ -235,6 +329,10 @@ contract ReBTC is
         return super.approve(spender, amount);
     }
 
+    /*
+    * @notice Increase allowance function to allow for ERC20 approvals
+    * @dev This function is only callable when the token is not paused and the owner and spender are not blacklisted
+    */
     function increaseAllowance(address spender, uint256 addedValue) 
         public 
         override 
@@ -248,6 +346,10 @@ contract ReBTC is
         return super.increaseAllowance(spender, addedValue);
     }
 
+    /*
+    * @notice Decrease allowance function to allow for ERC20 approvals
+    * @dev This function is only callable when the token is not paused and the owner and spender are not blacklisted
+    */
     function decreaseAllowance(address spender, uint256 subtractedValue) 
         public 
         override 
@@ -261,6 +363,10 @@ contract ReBTC is
         return super.decreaseAllowance(spender, subtractedValue);
     }
 
+    /*
+    * @notice Permit function to allow for ERC20 approvals
+    * @dev This function is only callable when the token is not paused and the owner and spender are not blacklisted
+    */
     function permit(
         address owner,
         address spender,
@@ -275,19 +381,24 @@ contract ReBTC is
         require(spender != address(this), "Approve to reBTC contract");
         super.permit(owner, spender, value, deadline, v, r, s);
     }
-
+    /*
+    * @notice Bootstrap the token with 1 sat in the contract
+    * 1 satoshi is scaled to 10^10 to support 18 decimal precision for reBTC
+    * @dev This function is only callable by the DEFAULT_ADMIN_ROLE
+    */
     function bootstrap() external onlyRole(DEFAULT_ADMIN_ROLE) {
-    require(!_bootstrapped, "Already bootstrapped");
+        require(!_bootstrapped, "Already bootstrapped");
 
-    uint256 oneSatScaled = 1e10; // 1 sat scaled to 18 decimals
-    uint256 initialShares = 1e10;
+        uint256 oneSatScaled = 1e10; // 1 sat scaled to 18 decimals
+        uint256 initialShares = 1e10;
 
-    _totalPooledBTC = oneSatScaled;
-    _totalShares = initialShares;
-    _shares[address(0)] = initialShares;
+        _totalPooledBTC = oneSatScaled;
+        _totalShares = initialShares;
+        _shares[address(0)] = initialShares;
 
-    emit Transfer(address(0), address(0), 0);
+        emit Transfer(address(0), address(0), 0);
 
-    _bootstrapped = true;
-}
+        _bootstrapped = true;
+    }
+
 }
