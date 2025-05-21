@@ -7,7 +7,7 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20Permit.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
 import "./reBTC.sol";
 
 /**
@@ -20,7 +20,7 @@ contract WrappedReBTC is
     AccessControlUpgradeable, 
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
-    ERC20Permit
+    ERC20PermitUpgradeable
 {
     using SafeMathUpgradeable for uint256;
 
@@ -35,7 +35,7 @@ contract WrappedReBTC is
     // ================ Storage ================
     
     /// @notice Reference to the reBTC token
-    reBTC public reBTC;
+    ReBTC public reBTC;
     
     // Add gap for future storage variables
     uint256[50] private __gap;
@@ -76,22 +76,18 @@ contract WrappedReBTC is
     
     /**
      * @notice Initializes the contract
-     * @param name_ Name of the token
-     * @param symbol_ Symbol of the token
      * @param admin_ Address that will have admin role
      * @param _reBTC Address of the reBTC token
      */
     function initialize(
-        string memory name_,
-        string memory symbol_,
         address admin_,
         address _reBTC
     ) public initializer {
         require(admin_ != address(0), "Admin cannot be zero address");
-        require(_reBTC != address(0), "mBTC cannot be zero address");
+        require(_reBTC != address(0), "reBTC cannot be zero address");
 
-        __ERC20_init(name_, symbol_);
-        __ERC20Permit_init(name_);
+        __ERC20_init("WrappedReBTC", "WreBTC");
+        __ERC20Permit_init("WrappedReBTC");
         __AccessControl_init();
         __Pausable_init();
         __ReentrancyGuard_init();
@@ -100,7 +96,7 @@ contract WrappedReBTC is
         _setupRole(PAUSE_ROLE, admin_);
         _setupRole(RESUME_ROLE, admin_);
         
-        reBTC = reBTC(_reBTC);
+        reBTC = ReBTC(_reBTC);
     }
 
     // ================ External Functions ================
@@ -211,7 +207,7 @@ contract WrappedReBTC is
         onlyRole(DEFAULT_ADMIN_ROLE) 
         nonReentrant
     {
-        require(_token != address(mBTC), "Cannot recover mBTC");
+        require(_token != address(reBTC), "Cannot recover reBTC");
         require(_recipient != address(0), "Recipient cannot be zero address");
         require(_amount > 0, "Amount must be greater than 0");
         

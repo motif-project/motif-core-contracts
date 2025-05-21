@@ -5,14 +5,14 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgrad
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "../token/MotifBitcoin.sol";
+import "../token/reBTC.sol";
 import "../interfaces/IBitcoinPodManager.sol";
 import "../interfaces/IBitcoinPod.sol";
 import "../interfaces/ITokenHub.sol";
 
 /**
  * @title TokenHub
- * @notice Central coordinator for Enhanced Bitcoin pod shares and MotifBTC token minting/burning
+ * @notice Central coordinator for Enhanced Bitcoin pod shares and reBTC token minting/burning
  */
 contract TokenHub is 
     Initializable, 
@@ -29,7 +29,7 @@ contract TokenHub is
     bytes32 public constant EMERGENCY_ROLE = keccak256("EMERGENCY_ROLE");
     
     // State variables
-    MotifBitcoin public motifBitcoin;
+    ReBTC public reBTC;
     IBitcoinPodManager public podManager;
     
     // Pod tracking
@@ -60,20 +60,20 @@ contract TokenHub is
     
     /**
      * @notice Initialize the TokenHub contract
-     * @param _motifBitcoin Address of the MotifBitcoin token
+     * @param _reBTC Address of the reBTC token
      * @param _podManager Address of the BitcoinPodManager
      * @param _admin Address of the admin
      * @param _maxTotalBitcoin Maximum total Bitcoin in the protocol
      * @param _minPodSize Minimum pod size
      */
     function initialize(
-        address _motifBitcoin,
+        address _reBTC,
         address _podManager,
         address _admin,
         uint256 _maxTotalBitcoin,
         uint256 _minPodSize
     ) external initializer {
-        if (_motifBitcoin == address(0)) revert ZeroArgument("_motifBitcoin");
+        if (_reBTC == address(0)) revert ZeroArgument("_reBTC");
         if (_podManager == address(0)) revert ZeroArgument("_podManager");
         if (_admin == address(0)) revert ZeroArgument("_admin");
         if (_maxTotalBitcoin == 0) revert ZeroArgument("_maxTotalBitcoin");
@@ -87,7 +87,7 @@ contract TokenHub is
         _grantRole(ADMIN_ROLE, _admin);
         _grantRole(EMERGENCY_ROLE, _admin);
         
-        motifBitcoin = MotifBitcoin(_motifBitcoin);
+        reBTC = ReBTC(_reBTC);
         podManager = IBitcoinPodManager(_podManager);
         maxTotalBitcoin = _maxTotalBitcoin;
         minPodSize = _minPodSize;
@@ -142,18 +142,24 @@ contract TokenHub is
         //  revert if pod is not delegated
         if (!isDelegatedPod[_podAddress]) revert PodNotDelegated(_podAddress);
 
-        // Calculate shares to mint. Mint the amount in the Pod 
-        uint256 _bitcoinAmount = IBitcoinPod(_podAddress).getBitcoinBalance();
-        uint256 shares = motifBitcoin.getSharesByPooledBitcoin(_bitcoinAmount);
+        // Get pod balance in satoshis (8 decimals)
+        uint256 btcAmount = IBitcoinPod(_podAddress).getBitcoinBalance();
+        
+        // Convert to reBTC amount (18 decimals)
+        uint256 reBTCAmount = btcToReBTC(btcAmount);
+        
+        // Calculate shares
+        uint256 shares = reBTC.btcToShares(reBTCAmount);
         if (shares == 0) revert ZeroArgument("shares");
         
         totalShares += shares;
         
-        // Mint tokens
-        motifBitcoin.mintShares(_recipient, shares);
+        // Mint tokens with 18 decimal amount
+        reBTC.mint(_recipient, reBTCAmount);
         // lock the pod // lock the bitcoinpod
-        IBitcoinPod(_podAddress).lock(); // lock the pod to prevent any further minting or burning. Stops withdrawal of Bitcoin from the pod
-        emit SharesMinted(_recipient, shares, _bitcoinAmount);
+        // lock the pod to prevent any further minting or burning. Stops withdrawal of Bitcoin from the pod
+        IBitcoinPod(_podAddress).lock(); 
+        emit SharesMinted(_recipient, shares, reBTCAmount);
         
         return shares;
     }
@@ -179,18 +185,21 @@ contract TokenHub is
         // Check shares match
         if (podShares[_podAddress] != _shares) revert SharesMismatch(podShares[_podAddress], _shares);
         
-        // Get Bitcoin amount
-        uint256 bitcoinAmount = IBitcoinPod(_podAddress).getBitcoinBalance();
+        // Get reBTC amount (18 decimals) from shares
+        uint256 reBTCAmount = reBTC.sharesToBTC(_shares);
         
-        // Burn tokens
-        uint256 burnedAmount = motifBitcoin.burnShares(_owner, _shares);
+        // Convert back to BTC amount (8 decimals)
+        uint256 btcAmount = reBTCToBtc(reBTCAmount);
+        
+        // Burn shares
+        reBTC.burnShares(_owner, _shares);
         
         
         totalShares -= _shares;
         delete podShares[_podAddress];
-        emit SharesBurned(_owner, _shares, burnedAmount);
+        emit SharesBurned(_owner, _shares, btcAmount);
         IBitcoinPod(_podAddress).unlock(); // unlock the pod to allow withdrawal of Bitcoin from the pod after burning
-        return bitcoinAmount;
+        return btcAmount;
     }
     
     /**
@@ -240,11 +249,12 @@ contract TokenHub is
     
     /**
      * @notice Get shares by pooled Bitcoin
-     * @param _bitcoinAmount Amount of Bitcoin
+     * @param _bitcoinAmount Amount of Bitcoin in 8 decimals
      * @return Number of shares
      */
     function getSharesByPooledBitcoin(uint256 _bitcoinAmount) external view returns (uint256) {
-        return motifBitcoin.getSharesByPooledBitcoin(_bitcoinAmount);
+        uint256 reBTCAmount = btcToReBTC(_bitcoinAmount);
+        return reBTC.btcToShares(reBTCAmount);
     }
     
     
@@ -255,5 +265,20 @@ contract TokenHub is
     function getTotalShares() external view returns (uint256) {
         return totalShares;
     }
-    
+    /**
+     * @notice Convert from 8 decimals BTC to 18 decimals reBTC
+     * @param btcAmount Amount of BTC
+     * @return Amount of reBTC
+     */
+    function btcToReBTC(uint256 btcAmount) public pure returns (uint256) {
+        return btcAmount * 10**10; // Convert from 8 to 18 decimals
+    }
+    /**
+     * @notice Convert back from 18 decimals reBTC to 8 decimals BTC
+     * @param reBTCAmount Amount of reBTC
+     * @return Amount of BTC
+     */
+    function reBTCToBtc(uint256 reBTCAmount) public pure returns (uint256) {
+        return reBTCAmount / 10**10; // Convert from 18 to 8 decimals
+    }
 }
