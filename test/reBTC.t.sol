@@ -434,13 +434,13 @@ contract ReBTCTest is Test {
             if (i % 2 == 0) {
                 // Deposit
                 vm.startPrank(admin);
-                uint256 scaledAmount = amount * 10**10;
+                
                 reBTC.mint(admin, scaledAmount);
                 vm.stopPrank();
             } else {
                 // Withdraw
                 vm.startPrank(admin);
-                uint256 scaledAmount = amount * 10**10;
+                
                 reBTC.burn(admin, scaledAmount);
                 vm.stopPrank();
             }

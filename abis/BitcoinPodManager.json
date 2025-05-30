@@ -37,6 +37,67 @@
   },
   {
     "type": "function",
+    "name": "createEnhancedPod",
+    "inputs": [
+      {
+        "name": "params",
+        "type": "tuple",
+        "internalType": "struct BitcoinPodManager.EnhancedPodParams",
+        "components": [
+          {
+            "name": "operator",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "btcAddress",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "script",
+            "type": "bytes",
+            "internalType": "bytes"
+          },
+          {
+            "name": "motifBitcoin",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "operatorFeeBP",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "curatorFeeBP",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "protocolFeeBP",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "protocolFeeRecipient",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "createPod",
     "inputs": [
       {
@@ -62,6 +123,19 @@
         "internalType": "address"
       }
     ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "delegateEnhancedPodToTokenHub",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
@@ -197,6 +271,19 @@
   },
   {
     "type": "function",
+    "name": "getTokenHub",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getTotalPods",
     "inputs": [],
     "outputs": [
@@ -277,10 +364,53 @@
         "name": "motifServiceManager_",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "tokenHub_",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "isEnhancedBitcoinPod",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isEnhancedPod",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -355,10 +485,49 @@
   },
   {
     "type": "function",
+    "name": "setTokenHub",
+    "inputs": [
+      {
+        "name": "_tokenHub",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "tokenHub",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "transferOwnership",
     "inputs": [
       {
         "name": "newOwner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "undelegateEnhancedPodFromTokenHub",
+    "inputs": [
+      {
+        "name": "pod",
         "type": "address",
         "internalType": "address"
       }
@@ -623,6 +792,31 @@
   },
   {
     "type": "event",
+    "name": "EnhancedPodCreated",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "pod",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "operator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Initialized",
     "inputs": [
       {
@@ -712,10 +906,55 @@
   },
   {
     "type": "event",
+    "name": "PodDelegatedToTokenHub",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "tokenHub",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "PodUndelegated",
     "inputs": [
       {
         "name": "pod",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PodUndelegatedFromTokenHub",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TokenHubSet",
+    "inputs": [
+      {
+        "name": "tokenHub",
         "type": "address",
         "indexed": true,
         "internalType": "address"

@@ -15,7 +15,9 @@ const contractsToExtract = [
   'MotifServiceManager',
   'BitcoinPodManager',
   'AppRegistry',
-  'BitcoinPod'
+  'BitcoinPod',
+  'reBTC',
+  'TokenHub'
 ];
 
 if (!fs.existsSync(abiDir)) {

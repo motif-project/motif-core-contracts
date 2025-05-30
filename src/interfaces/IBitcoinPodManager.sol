@@ -27,6 +27,12 @@ interface IBitcoinPodManager {
     error WithdrawalTransactionAlreadySubmitted(address pod);
     /// @notice Thrown when withdrawal transaction is not submitted
     error WithdrawalTransactionNotSubmitted(address pod);
+    /// @notice Thrown when curator is not registered
+    error CuratorNotRegistered(address curator);
+    /// @notice Thrown when strategy is not approved for curator
+    error StrategyNotApproved(address curator, address strategy);
+    /// @notice Thrown when curator registry is not set
+    error CuratorRegistryNotSet();
 
     /**
      * @notice Struct to store Bitcoin deposit request details
@@ -38,6 +44,25 @@ interface IBitcoinPodManager {
         bytes32 transactionId;
         uint256 amount;
         bool isPending;
+    }
+
+    /**
+     * @notice Struct for enhanced pod creation parameters
+     * @param curator The address of the curator for the pod
+     * @param strategy The address of the strategy the curator can use
+     * @param operatorFeeBP The operator fee in basis points
+     * @param curatorFeeBP The curator fee in basis points  
+     * @param protocolFeeBP The protocol fee in basis points
+     * @param protocolFeeRecipient The address to receive protocol fees
+     */
+    struct EnhancedPodParams {
+        address remapBitcoin;
+        address curator;
+        address strategy;
+        uint256 operatorFeeBP;
+        uint256 curatorFeeBP;
+        uint256 protocolFeeBP;
+        address protocolFeeRecipient;
     }
 
     /**
@@ -271,4 +296,109 @@ interface IBitcoinPodManager {
      */
     function setSignedBitcoinWithdrawTransactionPod(address pod, bytes memory signedBitcoinWithdrawTransaction)
         external;
+
+    /**
+     * @notice Gets the address of the Curator Registry contract
+     * @return The address of the Curator Registry
+     */
+    function getCuratorRegistry() external view returns (address);
+
+    /**
+     * @notice Gets the curator assigned to a pod
+     * @param pod The address of the pod to lookup
+     * @return The address of the curator assigned to the pod
+     */
+    function getPodCurator(address pod) external view returns (address);
+
+    /**
+     * @notice Gets the strategy assigned to a pod
+     * @param pod The address of the pod to lookup  
+     * @return The address of the strategy assigned to the pod
+     */
+    function getPodStrategy(address pod) external view returns (address);
+
+    /**
+     * @notice Checks if a pod is an enhanced pod
+     * @param pod The address of the pod to check
+     * @return True if the pod is enhanced, false otherwise
+     */
+    function isEnhancedPod(address pod) external view returns (bool);
+
+    /**
+     * @notice Event emitted when an enhanced pod is created
+     * @param user The address of the user creating the pod
+     * @param pod The address of the created enhanced pod
+     * @param operator The address of the operator for the pod
+     * @param curator The address of the curator for the pod
+     * @param strategy The address of the strategy for the pod
+     */
+    event EnhancedPodCreated(
+        address indexed user, 
+        address indexed pod, 
+        address indexed operator,
+        address curator,
+        address strategy
+    );
+
+    /**
+     * @notice Event emitted when curator registry is updated
+     * @param oldRegistry The address of the old curator registry
+     * @param newRegistry The address of the new curator registry
+     */
+    event CuratorRegistryUpdated(address indexed oldRegistry, address indexed newRegistry);
+    event CuratorRegistrySet(address indexed curatorRegistry); 
+    event PodCuratorStrategyApproved(address indexed pod, address indexed curator, address indexed strategy); 
+    event PodCuratorStrategyRemoved(address indexed pod, address indexed curator, address indexed strategy); 
+    
+    // Events for enhanced functionality
+    /**
+     * @notice Event emitted when an Enhanced pod is created
+     * @param owner The address of the owner of the pod
+     * @param pod The address of the pod being created
+     * @param operator The address of the operator creating the pod
+     */
+    event EnhancedPodCreated(address indexed owner, address indexed pod, address indexed operator);
+    /**
+     * @notice Event emitted when a pod is delegated to a token hub
+     * @param pod The address of the pod being delegated
+     * @param tokenHub The address of the token hub being delegated to
+     */
+    event PodDelegatedToTokenHub(address indexed pod, address indexed tokenHub);
+    /**
+     * @notice Event emitted when a pod is undelegated from a token hub
+     * @param pod The address of the pod being undelegated
+     */
+    event PodUndelegatedFromTokenHub(address indexed pod);
+    /**
+     * @notice Event emitted when a token hub is set
+     * @param tokenHub The address of the token hub being set
+     */
+    event TokenHubSet(address indexed tokenHub);
+
+    /**
+     * @notice Creates a new enhanced pod with curator and strategy
+     * @param operator The address of the operator creating the pod
+     * @param btcAddress The Bitcoin address for the pod
+     * @param script The Bitcoin script for the pod
+     * @param enhancedParams The enhanced pod parameters including curator and strategy
+     * @return address The address of the created enhanced pod
+     * @dev Checks that:
+     * - User doesn't already have a pod
+     * - Operator is registered in Motif Stake Registry
+     * - Curator is registered in Curator Registry
+     * - Strategy is approved for the curator
+     */
+    function createEnhancedPod(
+        address operator,
+        string memory btcAddress,
+        bytes calldata script,
+        EnhancedPodParams calldata enhancedParams
+    ) external returns (address);
+
+    /**
+     * @notice Updates the curator registry address
+     * @param newRegistry The address of the new curator registry
+     * @dev Only admin can call this function
+     */
+    function setCuratorRegistry(address newRegistry) external;
 }

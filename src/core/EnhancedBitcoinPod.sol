@@ -2,60 +2,54 @@
 pragma solidity 0.8.25;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721ReceiverUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+
 import "../modules/FeeManager.sol";
-import "../interfaces/IBitcoinPod.sol";
+import "./BaseBitcoinPod.sol";
+import "../interfaces/IEnhancedBitcoinPod.sol";
 import "../interfaces/ITokenHub.sol";
 import "../interfaces/IRewardsDistributor.sol";
+import "../interfaces/ICuratorRegistry.sol";
 
 /**
  * @title EnhancedBitcoinPod
  * @notice A Bitcoin custody pod with token management and yield strategy capabilities
- * @dev Implements IBitcoinPod interface and extends FeeManager for role-based access control and fee management
+ * @dev Inherits core logic from BaseBitcoinPod and adds advanced features and role-based access control
  */
-contract EnhancedBitcoinPod is 
-    Initializable, 
+contract EnhancedBitcoinPod is
+    Initializable,
+    OwnableUpgradeable,
     PausableUpgradeable,
+    IERC721ReceiverUpgradeable,
     FeeManager,
-    IBitcoinPod,
-    IERC721ReceiverUpgradeable
+    BaseBitcoinPod,
+    IEnhancedBitcoinPod   
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
-    
-    // Pod state
-    PodState public podState;
-    bool public locked;
-    string public bitcoinAddress;
-    bytes public operatorBtcPubKey;
-    
-    // Bitcoin balance
-    uint256 private _bitcoinBalance;
-    
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
     // TokenHub integration
     address public tokenHub;
-    address public podManager;
     bool public isDelegatedToTokenHub;
-    
+
     // Rewards distributor
     IRewardsDistributor public rewardsDistributor;
-    
+
     // Rewards address for aggregating rewards
     address public rewardsAddress;
-    
+
     // Token tracking
-    IERC20Upgradeable public motifBitcoin;
+    IERC20Upgradeable public reBTC;
     uint256 public podShares;
-    
-    // Withdrawal transaction
-    bytes private _signedBitcoinWithdrawTransaction;
-    
+
     // Strategy registry
     mapping(address => bool) public approvedStrategies;
-    
+
     // Reward tracking
     struct RewardToken {
         address token;
@@ -64,287 +58,192 @@ contract EnhancedBitcoinPod is
     }
     
     mapping(address => RewardToken) public rewardTokens;
-    address[] public rewardTokenList;
+    EnumerableSetUpgradeable.AddressSet private rewardTokenList;
+    address public podManager;
     
+    // Curator-related variables
+    ICuratorRegistry public curatorRegistry;
+    address public assignedCurator;
+    
+    // Pod-level curator-strategy approvals. Only one strategy can be approved for a pod
+   // mapping(address => bool) public approvedCuratorStrategies; // strategy => approved for this pod
+   address private _podApprovedStrategy;
+
     // Events
-    event TokenHubSet(address tokenHub);
-    event PodManagerSet(address podManager);
-    event TokenHubDelegated(address tokenHub);
-    event TokenHubUndelegated();
-    event SharesUpdated(uint256 newShares);
-    event TokensTransferred(address indexed to, uint256 amount);
-    event StrategyApproved(address indexed strategy, bool approved);
-    event YieldReported(uint256 amount);
-    event BitcoinBalanceUpdated(uint256 newBalance);
-    event ERC20Recovered(address indexed token, address indexed to, uint256 amount);
-    event ERC721Recovered(address indexed token, address indexed to, uint256 tokenId);
-    event RewardTokenAdded(address indexed token);
-    event RewardTokenRemoved(address indexed token);
-    event RewardsDistributed(address indexed token, uint256 amount);
-    event RewardsAddressSet(address indexed rewardsAddress);
-    event RewardsDistributorSet(address indexed rewardsDistributor);
-    
+    event CuratorAssigned(address indexed curator, address indexed forwarder);
+    event CuratorStrategyApprovedForPod(address indexed curator, address indexed strategy);
+    event CuratorStrategyRemovedFromPod(address indexed curator, address indexed strategy);
+
     /**
      * @notice Initialize the EnhancedBitcoinPod
      * @param _admin Address of the admin
      * @param _owner Address of the owner
      * @param _operator Address of the operator
+     * @param _curator Address of the curator
      * @param _operatorBtcPubKey Bitcoin public key of the operator
      * @param _bitcoinAddress Bitcoin address of the pod
      * @param _operatorFeeBP Operator fee in basis points
      * @param _curatorFeeBP Curator fee in basis points
      * @param _protocolFeeBP Protocol fee in basis points
      * @param _protocolFeeRecipient Address to receive protocol fees
-     * @param _motifBitcoin Address of the MotifBitcoin token
+     * @param _remapBitcoin Address of the reBTC token contract
      * @param _podManager Address of the BitcoinPodManager
+     * @param _curatorRegistry Address of the curator registry
      */
     function initialize(
         address _admin,
         address _owner,
         address _operator,
+        address _curator,          // Can be address(0)
         bytes memory _operatorBtcPubKey,
         string memory _bitcoinAddress,
         uint256 _operatorFeeBP,
         uint256 _curatorFeeBP,
         uint256 _protocolFeeBP,
         address _protocolFeeRecipient,
-        address _motifBitcoin,
-        address _podManager
+        address _remapBitcoin,
+        address _podManager,
+        address _tokenHub,
+        address _curatorRegistry
     ) external initializer {
         require(_admin != address(0), "Admin cannot be zero address");
         require(_owner != address(0), "Owner cannot be zero address");
         require(_operator != address(0), "Operator cannot be zero address");
         require(_operatorBtcPubKey.length > 0, "Operator BTC public key cannot be empty");
         require(bytes(_bitcoinAddress).length > 0, "Bitcoin address cannot be empty");
-        require(_motifBitcoin != address(0), "MotifBitcoin cannot be zero address");
+        require(_remapBitcoin != address(0), "remapBitcoin cannot be zero address");
         require(_podManager != address(0), "PodManager cannot be zero address");
-        
+        require(_curatorRegistry != address(0), "CuratorRegistry cannot be zero");
+        require(_tokenHub != address(0), "TokenHub cannot be zero address");
         __Pausable_init();
+        __Ownable_init();
+        __ReentrancyGuard_init();
+        _transferOwnership(_owner);
+        // Initialize Base contracts
+        __BaseBitcoinPod_init(_operator, _operatorBtcPubKey, _bitcoinAddress);
         __FeeManager_init(_admin, _owner, _operator, _operatorFeeBP, _curatorFeeBP, _protocolFeeBP, _protocolFeeRecipient);
-        
-        // Set roles
-        _grantRole(ADMIN_ROLE, _admin);
-        _grantRole(ADMIN_ROLE, _owner);
-        _grantRole(OPERATOR_ROLE, _operator);
-        
-        // Set pod state
-        podState = PodState.Active;
-        locked = false;
-        bitcoinAddress = _bitcoinAddress;
-        operatorBtcPubKey = _operatorBtcPubKey;
-        
         // Set token
-        motifBitcoin = IERC20Upgradeable(_motifBitcoin);
-        
+        reBTC = IERC20Upgradeable(_remapBitcoin);
+
         // Set pod manager
         podManager = _podManager;
+        tokenHub = _tokenHub;
+        isDelegatedToTokenHub = false;
+
+        curatorRegistry = ICuratorRegistry(_curatorRegistry);
+        
+        if (_curator != address(0)) {
+            require(curatorRegistry.isCuratorActive(_curator), "Curator not active");
+            assignedCurator = _curator;
+            
+            // Grant role to curator's forwarder
+            address curatorForwarder = curatorRegistry.getCuratorInfo(_curator).forwarder;
+            _grantRole(CURATOR_ROLE, curatorForwarder);
+            
+            emit CuratorAssigned(_curator, curatorForwarder);
+        }
+
+        emit PodInitialized(address(this), _owner, _operator);
     }
-    
+
+    // --- Access Control for BaseBitcoinPod ---
+    modifier onlyManager() override {
+        require(
+            hasRole(ADMIN_ROLE, msg.sender) || msg.sender == podManager,
+            "Not authorized"
+        );
+        _;
+    }
+
+    // --- Advanced logic and overrides below ---
+
+    // TokenHub/Delegation
     /**
-     * @notice Set the TokenHub address
-     * @param _tokenHub Address of the TokenHub
+     * @notice Set the TokenHub address for delegation
+     * @param _tokenHub Address of the TokenHub contract
      * @dev Only callable by admin or pod manager
      */
-    function setTokenHub(address _tokenHub) external {
+    function setTokenHub(address _tokenHub) external override {
         require(
-            hasRole(ADMIN_ROLE, msg.sender) || 
-            msg.sender == podManager, 
+            hasRole(ADMIN_ROLE, msg.sender) || msg.sender == podManager,
             "Not authorized"
         );
         require(_tokenHub != address(0), "TokenHub cannot be zero address");
-        
         tokenHub = _tokenHub;
-        
         emit TokenHubSet(_tokenHub);
     }
-    function getOperatorBtcPubKey() external view returns (bytes memory) {
-        return operatorBtcPubKey;
-    }
-    function isLocked() external view returns (bool) {
-        return locked;
-    }
-    
+
     /**
-     * @notice Set the pod manager address
-     * @param _podManager Address of the pod manager
+     * @notice Set the PodManager address
+     * @param _podManager Address of the PodManager contract
      * @dev Only callable by admin
      */
-    function setPodManager(address _podManager) external onlyRole(ADMIN_ROLE) {
+    function setPodManager(address _podManager) external override onlyRole(ADMIN_ROLE) {
         require(_podManager != address(0), "PodManager cannot be zero address");
-        
         podManager = _podManager;
-        
         emit PodManagerSet(_podManager);
     }
-    /**
-     * @notice Mint motifBTC tokens
-     * @param _recipient Address to receive the tokens
-     * @return Amount of shares minted
-     * @dev Only callable by owner or curator when delegated to TokenHub
-     */
-    function mintTokens(address _recipient) 
-        external 
-        whenNotPaused 
-        returns (uint256) 
-    {
-        require(
-            hasRole(OWNER_ROLE, msg.sender) || 
-            hasRole(CURATOR_ROLE, msg.sender), 
-            "Not authorized"
-        );
-        require(isDelegatedToTokenHub, "Not delegated to TokenHub");
-        require(_recipient != address(0), "Recipient cannot be zero address");
 
-        // check if the pod is locked
-        require(!locked, "Pod is locked");
-       
-        // Call TokenHub to mint tokens
-        uint256 shares = ITokenHub(tokenHub).mintTokensForPod(
-            address(this),  
-            _recipient
-        );
-        // lock the pod after minting tokens 
-        locked = true;
-        emit PodLocked(address(this));
-        // Update pod shares
-        podShares += shares;
-        emit SharesUpdated(podShares);
-        
-        return shares;
-    }
-    
-    /**
-     * @notice Burn motifBTC tokens
-     * @param _shares Amount of shares to burn
-     * @param _recipient Address to receive the Bitcoin (on Bitcoin network)
-     * @return Amount of Bitcoin to be received
-     * @dev Only callable by owner or curator when delegated to TokenHub
-     */
-    function burnTokens(uint256 _shares, address _recipient) 
-        external 
-        whenNotPaused 
-        returns (uint256) 
-    {
-        require(
-            hasRole(OWNER_ROLE, msg.sender) || 
-            hasRole(CURATOR_ROLE, msg.sender) || 
-            msg.sender == address(this), 
-            "Not authorized"
-        );
-        require(isDelegatedToTokenHub, "Not delegated to TokenHub");
-        require(_shares > 0, "Shares must be greater than 0");
-        require(_recipient != address(0), "Recipient cannot be zero address");
-        
-        // If burning from pod's balance, check if we have enough
-        if (msg.sender == address(this)) {
-            require(_shares <= podShares, "Insufficient shares in pod");
-            podShares -= _shares;
-            emit SharesUpdated(podShares);
-        }
-        // check If the same amount of shares is burned as the bitcoin balance in the pod
-        // Should be updated later. Assuming the motifBTC token is not rebased.
-        require(_shares == _bitcoinBalance, "Shares burned do not match Bitcoin balance in pod");
-        
-        // Call TokenHub to burn tokens
-        uint256 bitcoinAmount = ITokenHub(tokenHub).burnTokensForPod(
-            address(this), 
-            _shares, 
-            _recipient
-        );
-        // unlock the pod after burning tokens 
-        locked = false;
-        emit PodUnlocked(address(this));
-        return bitcoinAmount;
-    }
     /**
      * @notice Set delegation status to TokenHub
-     * @param _isDelegated Whether the pod is delegated to TokenHub
+     * @param _isDelegated True to delegate, false to undelegate
      * @dev Only callable by pod manager
-     */
-    function setDelegationStatus(bool _isDelegated) external {
+    */
+    function setDelegationStatus(bool _isDelegated) external override {
         require(msg.sender == podManager, "Only pod manager can delegate");
         require(tokenHub != address(0), "TokenHub not set");
-        
-        // Update internal state
         isDelegatedToTokenHub = _isDelegated;
-        
-        // Emit appropriate event
         if (_isDelegated) {
             emit TokenHubDelegated(tokenHub);
         } else {
             emit TokenHubUndelegated();
         }
     }
-    
-    // @inheritdoc IBitcoinPod
-    function lock() external override {
-        require(
-            msg.sender == podManager, 
-            "Only Pod Manager can lock"
-        );
-        require(podState == PodState.Active, "Pod is not active");
-        locked = true;
-        emit PodLocked(address(this));
-    }
-    
-    // @inheritdoc IBitcoinPod
-    function unlock() external override {
-        require(
-            msg.sender == podManager,
-            "Only Pod Manager can unlock"
-        );
-        require(podState == PodState.Active, "Pod is not active");
-        locked = false;
-        emit PodUnlocked(address(this));
-    }
-    
     /**
-     * @notice Approve a strategy
-     * @param _strategy Address of the strategy
-     * @param _approved Whether the strategy is approved
-     * @dev Only callable by admin
+     * @notice Enhanced security modifier for curator operations
      */
-    function approveStrategy(address _strategy, bool _approved) external onlyRole(ADMIN_ROLE) {
-        require(_strategy != address(0), "Strategy cannot be zero address");
+    modifier onlyAuthorizedCuratorForStrategy(address strategy) {
+        require(hasRole(CURATOR_ROLE, msg.sender), "Not curator role");
         
-        approvedStrategies[_strategy] = _approved;
+        // Verify this is the curator forwarder
+        address curator = curatorRegistry.getCuratorByForwarder(msg.sender);
+        require(curator == assignedCurator, "Not assigned curator");
+        require(curatorRegistry.isCuratorActive(curator), "Curator not active");
         
-        emit StrategyApproved(_strategy, _approved);
-    }
-    
-    /**
-     * @notice Transfer tokens to a strategy
-     * @param _strategy Address of the strategy
-     * @param _amount Amount of tokens to transfer
-     * @dev Only callable by admin or operator
-     * @dev Pod must not be locked
-     */
-    function transferToStrategy(address _strategy, uint256 _amount) 
-        external 
-        whenNotPaused 
-        nonReentrant 
-    {
+        // Verify strategy is approved at registry level
         require(
-            hasRole(ADMIN_ROLE, msg.sender) || 
-            hasRole(OPERATOR_ROLE, msg.sender), 
+            curatorRegistry.curatorStrategies(curator, strategy),
+            "Strategy not approved for curator"
+        );
+        
+        // Verify strategy is approved at pod level
+        require(approvedCuratorStrategies[strategy], "Strategy not approved for pod");
+        _;
+    }
+    /**
+     * @notice Transfer Bitcoin to an approved strategy
+     * @param _strategy Address of the strategy to transfer Bitcoin to
+     * @param _amount Amount of Bitcoin to transfer
+     * @dev Only callable by admin or operator, and when pod is not locked
+     */
+    function transferToStrategy(address _strategy, uint256 _amount) external override whenNotPaused nonReentrant {
+        require(
+            hasRole(ADMIN_ROLE, msg.sender) || hasRole(OPERATOR_ROLE, msg.sender),
             "Not authorized"
         );
-        require(!locked, "Pod is locked");
+        
         require(approvedStrategies[_strategy], "Strategy not approved");
         require(_amount > 0, "Amount must be greater than 0");
-        
-        // Transfer tokens to strategy
-        motifBitcoin.safeTransfer(_strategy, _amount);
-        
+        reBTC.safeTransfer(_strategy, _amount);
         emit TokensTransferred(_strategy, _amount);
     }
-    
-    /**
+
+     /**
      * @notice Report yield from a strategy
      * @param _amount Amount of yield
      * @dev Only callable by approved strategies or admin/curator
      */
-    function reportYield(uint256 _amount) external whenNotPaused nonReentrant {
+    function reportYield(uint256 _amount) external override whenNotPaused nonReentrant {
         require(
             approvedStrategies[msg.sender] || 
             hasRole(ADMIN_ROLE, msg.sender) || 
@@ -358,285 +257,121 @@ contract EnhancedBitcoinPod is
         
         emit YieldReported(_amount);
     }
-    
+
+    // Token mint/burn via TokenHub
     /**
-     * @notice Recover ERC20 tokens
-     * @param _token Address of the token
-     * @param _to Address to send the tokens to
-     * @param _amount Amount of tokens to recover
-     * @dev Only callable by admin
-     * @dev Cannot recover motifBitcoin unless paused
+     * @notice Mint reBTC tokens 
+     * @param _recipient Address to receive the minted tokens
+     * @return shares Number of shares minted
+     * @dev Only callable by owner or curator when delegated to TokenHub
      */
-    function recoverERC20(address _token, address _to, uint256 _amount) external onlyRole(ADMIN_ROLE) {
-        require(_to != address(0), "Cannot recover to zero address");
-        require(_amount > 0, "Amount must be greater than 0");
-        
-        // If token is motifBitcoin, only allow recovery when paused
-        if (_token == address(motifBitcoin)) {
-            require(paused(), "Must be paused to recover motifBitcoin");
+    function mintTokens(address _recipient) external override whenNotPaused nonReentrant returns (uint256) {
+        require(
+            hasRole(OWNER_ROLE, msg.sender) || hasRole(CURATOR_ROLE, msg.sender),
+            "Not authorized"
+        );
+        require(isDelegatedToTokenHub, "Not delegated to TokenHub");
+        require(_recipient != address(0), "Recipient cannot be zero address");
+        //require(!isLocked(), "Pod is locked");
+        uint256 shares = ITokenHub(tokenHub).mintTokensForPod(address(this), _recipient);
+       // BaseBitcoinPod.lock(); // lock the pod after minting tokens
+        podShares += shares;
+        emit SharesUpdated(podShares);
+        return shares;
+    }
+
+    /**
+     * @notice Burn reBTC tokens and add Bitcoin in Pod 
+     * @param _shares Number of shares to burn
+     * @param _recipient Address to receive the burned Bitcoin
+     * @return bitcoinAmount Amount of Bitcoin burned
+     * @dev Only callable by owner, curator, or the pod itself when delegated to TokenHub
+     */
+    function burnTokens(uint256 _shares, address _recipient) external override nonReentrant whenNotPaused returns (uint256) {
+        require(
+            hasRole(OWNER_ROLE, msg.sender) || hasRole(CURATOR_ROLE, msg.sender) || msg.sender == address(this),
+            "Not authorized"
+        );
+        require(isDelegatedToTokenHub, "Not delegated to TokenHub");
+        require(_shares > 0, "Shares must be greater than 0");
+        require(_recipient != address(0), "Recipient cannot be zero address");
+        if (msg.sender == address(this)) {
+            require(_shares <= podShares, "Insufficient shares in pod");
+            podShares -= _shares;
+            emit SharesUpdated(podShares);
         }
-        
-        IERC20Upgradeable(_token).safeTransfer(_to, _amount);
-        
-        emit ERC20Recovered(_token, _to, _amount);
+        require(_shares == bitcoinBalance, "Shares burned do not match Bitcoin balance in pod");
+        uint256 bitcoinAmount = ITokenHub(tokenHub).burnTokensForPod(address(this), _shares, _recipient);
+       // BaseBitcoinPod.unlock(); // unlock the pod after burning tokens
+        return bitcoinAmount;
     }
-    
-    /**
-     * @notice Recover ERC721 tokens
-     * @param _token Address of the token
-     * @param _to Address to send the token to
-     * @param _tokenId ID of the token to recover
-     * @dev Only callable by admin
-     */
-    function recoverERC721(address _token, address _to, uint256 _tokenId) external onlyRole(ADMIN_ROLE) {
-        require(_to != address(0), "Cannot recover to zero address");
-        
-        IERC721Upgradeable(_token).safeTransferFrom(address(this), _to, _tokenId);
-        
-        emit ERC721Recovered(_token, _to, _tokenId);
-    }
-    
-    /**
-     * @notice Get the Bitcoin balance
-     * @return Bitcoin balance
-     */
-    function getBitcoinBalance() external view override returns (uint256) {
-        return _bitcoinBalance;
-    }
-    
-    /**
-     * @notice Get the pod state
-     * @return Pod state
-     */
-    function getPodState() external view override returns (PodState) {
-        return podState;
-    }
-    
-    /**
-     * @notice Get the Bitcoin address
-     * @return Bitcoin address
-     */
-    function getBitcoinAddress() external view override returns (string memory) {
-        return bitcoinAddress;
-    }
-    
-    /**
-     * @notice Get the signed Bitcoin withdrawal transaction
-     * @return Signed Bitcoin withdrawal transaction
-     */
-    function getSignedBitcoinWithdrawTransaction() external view override returns (bytes memory) {
-        return _signedBitcoinWithdrawTransaction;
-    }
-    
-    /**
-     * @notice Set the signed Bitcoin withdrawal transaction
-     * @param signedTransaction Signed Bitcoin withdrawal transaction
-     */
-    function setSignedBitcoinWithdrawTransaction(bytes calldata signedTransaction) external override {
-        require(
-            hasRole(OPERATOR_ROLE, msg.sender), 
-            "Only operator can set signed transaction"
-        );
-        
-        _signedBitcoinWithdrawTransaction = signedTransaction;
-    }
-    
-    /**
-     * @notice Set the pod state
-     * @param state New pod state
-     */
-    function setPodState(PodState state) external override {
-        require(
-            hasRole(ADMIN_ROLE, msg.sender) || 
-            msg.sender == podManager, 
-            "Not authorized"
-        );
-        
-        podState = state;
-    }
-    
-    /**
-     * @notice Adds Bitcoin value to the pod
-     * @param amount The amount to add
-     */
-    function mint(uint256 amount) external override {
-        require(
-            hasRole(ADMIN_ROLE, msg.sender) || 
-            msg.sender == podManager, 
-            "Not authorized"
-        );
-        require(amount > 0, "Amount must be greater than 0");
-        
-        _bitcoinBalance += amount;
-        
-        emit MintPodValue(address(this), amount);
-        emit BitcoinBalanceUpdated(_bitcoinBalance);
-    }
-    
-    /**
-     * @notice Removes Bitcoin value from the pod
-     * @param amount The amount to remove
-     */
-    function burn(uint256 amount) external override {
-        require(
-            hasRole(ADMIN_ROLE, msg.sender) || 
-            msg.sender == podManager, 
-            "Not authorized"
-        );
-        require(amount > 0, "Amount must be greater than 0");
-        require(amount <= _bitcoinBalance, "Insufficient balance");
-        
-        _bitcoinBalance -= amount;
-        
-        emit BurnPodValue(address(this), amount);
-        emit BitcoinBalanceUpdated(_bitcoinBalance);
-    }
-    
-    /**
-     * @notice Get the operator
-     * @return Operator address
-     */
-    function getOperator() external view override (RoleManager, IBitcoinPod) returns (address) {
-        uint256 operatorCount = getRoleMemberCount(OPERATOR_ROLE);
-        if (operatorCount == 0) {
-            return address(0);
-        }
-        return getRoleMember(OPERATOR_ROLE, 0);
-    }
-    
-    /**
-     * @notice Transfer fees to recipient
-     * @param _recipient Address to receive the fees
-     * @param _amount Amount to transfer
-     * @dev Implements the abstract function from FeeManager
-     */
-    function _transferFees(address _recipient, uint256 _amount) internal override {
-        motifBitcoin.safeTransfer(_recipient, _amount);
-    }
-    
-    /**
-     * @notice Pause the pod
-     * @dev Only callable by admin
-     */
-    function pause() external onlyRole(ADMIN_ROLE) {
-        _pause();
-    }
-    
-    /**
-     * @notice Unpause the pod
-     * @dev Only callable by admin
-     */
-    function unpause() external onlyRole(ADMIN_ROLE) {
-        _unpause();
-    }
-    
-    /**
-     * @notice ERC721 receiver function
-     * @dev Required for ERC721 token recovery
-     */
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes calldata
-    ) external pure override returns (bytes4) {
-        return this.onERC721Received.selector;
-    }
-    
+
     /**
      * @notice Add a reward token
      * @param _token Address of the reward token
      * @dev Only callable by admin
      */
-    function addRewardToken(address _token) external onlyRole(ADMIN_ROLE) {
+    function addRewardToken(address _token) external override onlyRole(ADMIN_ROLE) {
         require(_token != address(0), "Token cannot be zero address");
         require(rewardTokens[_token].token == address(0), "Token already added");
-        
-        rewardTokens[_token] = RewardToken({
-            token: _token,
-            totalRewards: 0,
-            distributedRewards: 0
-        });
-        
-        rewardTokenList.push(_token);
-        
+        rewardTokens[_token] = RewardToken({token: _token, totalRewards: 0, distributedRewards: 0});
+        rewardTokenList.add(_token);
         emit RewardTokenAdded(_token);
     }
-    
+
     /**
      * @notice Remove a reward token
      * @param _token Address of the reward token
      * @dev Only callable by admin
-     */
-    function removeRewardToken(address _token) external onlyRole(ADMIN_ROLE) {
-        require(rewardTokens[_token].token != address(0), "Token not found");
+     */    
+    function removeRewardToken(address _token) external override onlyRole(ADMIN_ROLE) {
+        require(rewardTokenList.contains(_token), "Token not found");
         require(rewardTokens[_token].totalRewards == rewardTokens[_token].distributedRewards, "Rewards not fully distributed");
         
-        // Remove from mapping
         delete rewardTokens[_token];
-        
-        // Remove from array
-        for (uint256 i = 0; i < rewardTokenList.length; i++) {
-            if (rewardTokenList[i] == _token) {
-                rewardTokenList[i] = rewardTokenList[rewardTokenList.length - 1];
-                rewardTokenList.pop();
-                break;
-            }
-        }
-        
+        rewardTokenList.remove(_token);
         emit RewardTokenRemoved(_token);
     }
-    
+
     /**
-     * @notice Set the rewards address
-     * @param _rewardsAddress Address to aggregate rewards
+     * @notice Set the rewards address for collecting rewards
+     * @param _rewardsAddress Address where rewards will be sent
      * @dev Only callable by admin
      */
-    function setRewardsAddress(address _rewardsAddress) external onlyRole(ADMIN_ROLE) {
+    function setRewardsAddress(address _rewardsAddress) external override onlyRole(ADMIN_ROLE) {
         require(_rewardsAddress != address(0), "Rewards address cannot be zero");
         rewardsAddress = _rewardsAddress;
         emit RewardsAddressSet(_rewardsAddress);
     }
-    
-    /**
+
+     /**
      * @notice Set the rewards distributor address
      * @param _rewardsDistributor Address of the rewards distributor
      * @dev Only callable by admin
      */
-    function setRewardsDistributor(address _rewardsDistributor) external onlyRole(ADMIN_ROLE) {
+    function setRewardsDistributor(address _rewardsDistributor) external override onlyRole(ADMIN_ROLE) {
         require(_rewardsDistributor != address(0), "Rewards distributor cannot be zero");
         rewardsDistributor = IRewardsDistributor(_rewardsDistributor);
         emit RewardsDistributorSet(_rewardsDistributor);
     }
-    
+
     /**
-     * @notice Report rewards from a strategy
+     * @notice Report rewards collected by a strategy
      * @param _token Address of the reward token
-     * @param _amount Amount of rewards
+     * @param _amount Amount of rewards reported
      * @dev Only callable by approved strategies
      */
-    function reportRewards(address _token, uint256 _amount) external whenNotPaused nonReentrant {
+    function reportRewards(address _token, uint256 _amount) external override whenNotPaused nonReentrant {
         require(approvedStrategies[msg.sender], "Not an approved strategy");
         require(rewardTokens[_token].token != address(0), "Token not supported");
         require(_amount > 0, "Amount must be greater than 0");
         require(rewardsAddress != address(0), "Rewards address not set");
         require(address(rewardsDistributor) != address(0), "Rewards distributor not set");
-        
-        // Update reward tracking
         rewardTokens[_token].totalRewards += _amount;
-        
-        // Calculate and distribute fees
-        uint256 feeAmount = (_amount * getTotalFeeBP()) / TOTAL_BASIS_POINTS;
-        
-        // Transfer tokens to rewards address
         IERC20Upgradeable(_token).safeTransferFrom(msg.sender, rewardsAddress, _amount);
-        
-        // Distribute fees
-        _distributeFees(_token, feeAmount);
-        
         emit YieldReported(_amount);
     }
-    
+
     /**
      * @notice Notify rewards distributor about new rewards
      * @param _token Address of the reward token
@@ -650,39 +385,23 @@ contract EnhancedBitcoinPod is
         uint256 _amount,
         bytes32 _merkleRoot,
         address _airdropAddress
-    ) external whenNotPaused nonReentrant {
+    ) external override whenNotPaused nonReentrant {
         require(
-            hasRole(ADMIN_ROLE, msg.sender) || 
-            hasRole(OPERATOR_ROLE, msg.sender), 
+            hasRole(ADMIN_ROLE, msg.sender) || hasRole(OPERATOR_ROLE, msg.sender),
             "Not authorized"
         );
         require(rewardTokens[_token].token != address(0), "Token not supported");
         require(_amount > 0, "Amount must be greater than 0");
-        require(
-            _amount <= rewardTokens[_token].totalRewards - rewardTokens[_token].distributedRewards,
-            "Insufficient rewards"
-        );
+        require(_amount <= rewardTokens[_token].totalRewards - rewardTokens[_token].distributedRewards, "Insufficient rewards");
         require(rewardsAddress != address(0), "Rewards address not set");
         require(address(rewardsDistributor) != address(0), "Rewards distributor not set");
         require(_merkleRoot != bytes32(0) || _airdropAddress != address(0), "Must specify either Merkle root or airdrop address");
-        
-        // Update distributed rewards
         rewardTokens[_token].distributedRewards += _amount;
-        
-        // Transfer rewards from rewards address to rewards distributor
         IERC20Upgradeable(_token).safeTransferFrom(rewardsAddress, address(rewardsDistributor), _amount);
-        
-        // Notify rewards distributor
-        rewardsDistributor.notifyRewards(
-            _token,
-            _amount,
-            _merkleRoot,
-            _airdropAddress
-        );
-        
+        rewardsDistributor.notifyRewards(_token, _amount, _merkleRoot, _airdropAddress);
         emit RewardsDistributed(_token, _amount);
     }
-    
+
     /**
      * @notice Get reward token information
      * @param _token Address of the reward token
@@ -690,30 +409,184 @@ contract EnhancedBitcoinPod is
      * @return totalRewards Total rewards collected
      * @return distributedRewards Rewards already distributed
      */
-    function getRewardTokenInfo(address _token) external view returns (
+    function getRewardTokenInfo(address _token) external view override returns (
         address token,
         uint256 totalRewards,
         uint256 distributedRewards
     ) {
         RewardToken memory rewardToken = rewardTokens[_token];
-        return (
-            rewardToken.token,
-            rewardToken.totalRewards,
-            rewardToken.distributedRewards
-        );
+        return (rewardToken.token, rewardToken.totalRewards, rewardToken.distributedRewards);
     }
     
     /**
      * @notice Get list of reward tokens
      * @return List of reward token addresses
      */
-    function getRewardTokenList() external view returns (address[] memory) {
-        return rewardTokenList;
+    function getRewardTokenList() external view override returns (address[] memory) {
+        uint256 length = rewardTokenList.length();
+        address[] memory tokens = new address[](length);
+    
+        for (uint256 i = 0; i < length; i++) {
+            tokens[i] = rewardTokenList.at(i);
+        }
+    
+        return tokens;
+    }
+
+    // Recovery
+      /**
+     * @notice Recover ERC20 tokens
+     * @param _token Address of the token
+     * @param _to Address to send the tokens to
+     * @param _amount Amount of tokens to recover
+     * @dev Only callable by admin
+     */
+    function recoverERC20(address _token, address _to, uint256 _amount) external override onlyRole(ADMIN_ROLE) {
+        require(_to != address(0), "Cannot recover to zero address");
+        require(_amount > 0, "Amount must be greater than 0");
+        if (_token == address(reBTC)) {
+            require(paused(), "Must be paused to recover reBTC");
+        }
+        IERC20Upgradeable(_token).safeTransfer(_to, _amount);
+        emit ERC20Recovered(_token, _to, _amount);
     }
     
+   /**
+    * @notice Recover ERC721 tokens from the pod
+    * @param _token Address of the ERC721 token contract
+    * @param _to Address to send the recovered token to
+    * @param _tokenId ID of the token to recover
+    * @dev Only callable by admin
+    * @dev Emits ERC721Recovered event on successful recovery
+    */
+    function recoverERC721(address _token, address _to, uint256 _tokenId) external override onlyRole(ADMIN_ROLE) {
+        require(_to != address(0), "Cannot recover to zero address");
+        IERC721Upgradeable(_token).safeTransferFrom(address(this), _to, _tokenId);
+        emit ERC721Recovered(_token, _to, _tokenId);
+    }
+
+    // Pause
+    /**
+     * @notice Pause the pod
+     * @dev Only callable by admin
+     * @dev Pausing prevents any state-modifying actions
+     */
+    function pause() external override onlyRole(ADMIN_ROLE) {
+        _pause();
+    }
+    // Unpause
+    /**
+     * @notice Unpause the pod
+     * @dev Only callable by admin
+     */
+    function unpause() external override onlyRole(ADMIN_ROLE) {
+        _unpause();
+    }
+
+     /**
+     * @notice ERC721 receiver function
+     * @dev Required for ERC721 token recovery
+     */
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes calldata
+    ) external pure override returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
+
+     /**
+     * @notice Transfer fees to recipient
+     * @param _recipient Address to receive the fees
+     * @param _amount Amount to transfer
+     * @dev Implements the abstract function from FeeManager
+     */
+    function _transferFees(address _recipient, uint256 _amount) internal override {
+        reBTC.safeTransfer(_recipient, _amount);
+    }
+
+    /**
+     * @notice Approve a curator-strategy combination for this pod
+     * @param strategy Address of the strategy
+     * @dev Only callable by owner or admin
+     * @dev Strategy must be approved for the assigned curator in the registry
+     */
+    function approveCuratorStrategyForPod(address strategy) external {
+        require(
+            hasRole(OWNER_ROLE, msg.sender) || hasRole(ADMIN_ROLE, msg.sender),
+            "Not authorized"
+        );
+        require(assignedCurator != address(0), "No curator assigned");
+        require(strategy != address(0), "Strategy cannot be zero");
+        require(
+            curatorRegistry.curatorStrategies(assignedCurator, strategy),
+            "Strategy not approved for curator in registry"
+        );
+        require(!approvedCuratorStrategies[strategy], "Strategy already approved for pod");
+
+        approvedCuratorStrategies[strategy] = true;
+        _podApprovedStrategies.add(strategy);
+
+        emit CuratorStrategyApprovedForPod(assignedCurator, strategy);
+    }
+
+    /**
+     * @notice Remove approval for a curator-strategy combination from this pod
+     * @param strategy Address of the strategy
+     */
+    function removeCuratorStrategyFromPod(address strategy) external {
+        require(
+            hasRole(OWNER_ROLE, msg.sender) || hasRole(ADMIN_ROLE, msg.sender),
+            "Not authorized"
+        );
+        require(approvedCuratorStrategies[strategy], "Strategy not approved for pod");
+
+        approvedCuratorStrategies[strategy] = false;
+        _podApprovedStrategies.remove(strategy);
+
+        emit CuratorStrategyRemovedFromPod(assignedCurator, strategy);
+    }
+
+    
+
+    /**
+     * @notice Transfer funds to an approved strategy
+     * @param strategy Address of the strategy
+     * @param amount Amount to transfer
+     */
+    function transferToStrategy(address strategy, uint256 amount) 
+        external 
+        override 
+        whenNotPaused 
+        nonReentrant 
+        onlyAuthorizedCuratorForStrategy(strategy)
+    {
+        require(amount > 0, "Amount must be greater than 0");
+        
+        reBTC.safeTransfer(strategy, amount);
+        emit TokensTransferred(strategy, amount);
+    }
+
+    /**
+     * @notice Get pod-approved strategies for the assigned curator
+     */
+    function getPodApprovedStrategy() external view returns (address) {
+        return _podApprovedStrategy;
+    }
+
+    /**
+     * @notice Check if a strategy is approved for this pod
+     */
+    function isStrategyApprovedForPod(address strategy) external view returns (bool) {
+        return _podApprovedStrategy == strategy;
+    }
+
+        
+     / --- Storage gap for upgradeability ---
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.
      */
     uint256[50] private __gap;
-} 
+}
