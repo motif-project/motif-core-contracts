@@ -25,11 +25,11 @@ interface ICuratorForwarder {
      * @notice Get the curator address this forwarder represents
      * @return Address of the curator
      */
-    function curator() external view returns (address);
+    function getCuratorAddress() external view returns (address);
 
     /**
      * @notice Get the registry address this forwarder uses
      * @return Address of the curator registry
      */
-    function registry() external view returns (address);
+    function getCuratorRegistryAddress() external view returns (address);
 }

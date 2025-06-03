@@ -16,6 +16,7 @@ import "../interfaces/IEnhancedBitcoinPod.sol";
 import "../interfaces/ITokenHub.sol";
 import "../interfaces/IRewardsDistributor.sol";
 import "../interfaces/ICuratorRegistry.sol";
+import "../interfaces/IBitcoinPodManager.sol";
 
 /**
  * @title EnhancedBitcoinPod
@@ -63,11 +64,9 @@ contract EnhancedBitcoinPod is
     
     // Curator-related variables
     ICuratorRegistry public curatorRegistry;
-    address public assignedCurator;
     
     // Pod-level curator-strategy approvals. Only one strategy can be approved for a pod
-   // mapping(address => bool) public approvedCuratorStrategies; // strategy => approved for this pod
-   address private _podApprovedStrategy;
+    address private _podApprovedStrategy;
 
     // Events
     event CuratorAssigned(address indexed curator, address indexed forwarder);
@@ -79,68 +78,55 @@ contract EnhancedBitcoinPod is
      * @param _admin Address of the admin
      * @param _owner Address of the owner
      * @param _operator Address of the operator
-     * @param _curator Address of the curator
      * @param _operatorBtcPubKey Bitcoin public key of the operator
      * @param _bitcoinAddress Bitcoin address of the pod
-     * @param _operatorFeeBP Operator fee in basis points
-     * @param _curatorFeeBP Curator fee in basis points
-     * @param _protocolFeeBP Protocol fee in basis points
-     * @param _protocolFeeRecipient Address to receive protocol fees
-     * @param _remapBitcoin Address of the reBTC token contract
      * @param _podManager Address of the BitcoinPodManager
      * @param _curatorRegistry Address of the curator registry
+     * @param params The enhanced pod parameters including curator and strategy
      */
     function initialize(
         address _admin,
         address _owner,
         address _operator,
-        address _curator,          // Can be address(0)
         bytes memory _operatorBtcPubKey,
         string memory _bitcoinAddress,
-        uint256 _operatorFeeBP,
-        uint256 _curatorFeeBP,
-        uint256 _protocolFeeBP,
-        address _protocolFeeRecipient,
-        address _remapBitcoin,
         address _podManager,
-        address _tokenHub,
-        address _curatorRegistry
+        address _curatorRegistry,
+        EnhancedPodParams calldata params  // Use the struct from interface
     ) external initializer {
         require(_admin != address(0), "Admin cannot be zero address");
         require(_owner != address(0), "Owner cannot be zero address");
         require(_operator != address(0), "Operator cannot be zero address");
         require(_operatorBtcPubKey.length > 0, "Operator BTC public key cannot be empty");
         require(bytes(_bitcoinAddress).length > 0, "Bitcoin address cannot be empty");
-        require(_remapBitcoin != address(0), "remapBitcoin cannot be zero address");
+        require(params.remapBitcoin != address(0), "remapBitcoin cannot be zero address");
         require(_podManager != address(0), "PodManager cannot be zero address");
         require(_curatorRegistry != address(0), "CuratorRegistry cannot be zero");
-        require(_tokenHub != address(0), "TokenHub cannot be zero address");
         __Pausable_init();
         __Ownable_init();
         __ReentrancyGuard_init();
         _transferOwnership(_owner);
         // Initialize Base contracts
         __BaseBitcoinPod_init(_operator, _operatorBtcPubKey, _bitcoinAddress);
-        __FeeManager_init(_admin, _owner, _operator, _operatorFeeBP, _curatorFeeBP, _protocolFeeBP, _protocolFeeRecipient);
+        __FeeManager_init(_admin, _owner, _operator, params.operatorFeeBP, params.curatorFeeBP, params.protocolFeeBP, params.protocolFeeRecipient);
         // Set token
-        reBTC = IERC20Upgradeable(_remapBitcoin);
+        reBTC = IERC20Upgradeable(params.remapBitcoin);
 
-        // Set pod manager
+        // Get TokenHub from PodManager instead of passing it directly
         podManager = _podManager;
-        tokenHub = _tokenHub;
+        tokenHub = IBitcoinPodManager(podManager).getTokenHubAddress();
         isDelegatedToTokenHub = false;
 
         curatorRegistry = ICuratorRegistry(_curatorRegistry);
         
-        if (_curator != address(0)) {
-            require(curatorRegistry.isCuratorActive(_curator), "Curator not active");
-            assignedCurator = _curator;
+        if (params.curator != address(0)) {
+            require(curatorRegistry.isCuratorActive(params.curator), "Curator not active");
             
             // Grant role to curator's forwarder
-            address curatorForwarder = curatorRegistry.getCuratorInfo(_curator).forwarder;
+            address curatorForwarder = curatorRegistry.getCuratorInfo(params.curator).forwarder;
             _grantRole(CURATOR_ROLE, curatorForwarder);
             
-            emit CuratorAssigned(_curator, curatorForwarder);
+            emit CuratorAssigned(params.curator, curatorForwarder);
         }
 
         emit PodInitialized(address(this), _owner, _operator);
@@ -207,36 +193,20 @@ contract EnhancedBitcoinPod is
         
         // Verify this is the curator forwarder
         address curator = curatorRegistry.getCuratorByForwarder(msg.sender);
-        require(curator == assignedCurator, "Not assigned curator");
+        require(curator != address(0), "Invalid forwarder");
         require(curatorRegistry.isCuratorActive(curator), "Curator not active");
         
         // Verify strategy is approved at registry level
         require(
-            curatorRegistry.curatorStrategies(curator, strategy),
+            curatorRegistry.isStrategyApprovedForCurator(curator, strategy),
             "Strategy not approved for curator"
         );
         
         // Verify strategy is approved at pod level
-        require(approvedCuratorStrategies[strategy], "Strategy not approved for pod");
+        require(_podApprovedStrategy == strategy, "Strategy not approved for pod");
         _;
     }
-    /**
-     * @notice Transfer Bitcoin to an approved strategy
-     * @param _strategy Address of the strategy to transfer Bitcoin to
-     * @param _amount Amount of Bitcoin to transfer
-     * @dev Only callable by admin or operator, and when pod is not locked
-     */
-    function transferToStrategy(address _strategy, uint256 _amount) external override whenNotPaused nonReentrant {
-        require(
-            hasRole(ADMIN_ROLE, msg.sender) || hasRole(OPERATOR_ROLE, msg.sender),
-            "Not authorized"
-        );
-        
-        require(approvedStrategies[_strategy], "Strategy not approved");
-        require(_amount > 0, "Amount must be greater than 0");
-        reBTC.safeTransfer(_strategy, _amount);
-        emit TokensTransferred(_strategy, _amount);
-    }
+   
 
      /**
      * @notice Report yield from a strategy
@@ -507,6 +477,22 @@ contract EnhancedBitcoinPod is
     }
 
     /**
+     * @notice Get the assigned curator for this pod
+     * @return Address of the assigned curator, or address(0) if none
+     */
+    function getAssignedCurator() external view returns (address) {
+        // Get curator forwarder with CURATOR_ROLE
+        uint256 curatorRoleMembers = getRoleMemberCount(CURATOR_ROLE);
+        if (curatorRoleMembers == 0) {
+            return address(0);
+        }
+        
+        // Should only have one curator role member
+        address curatorForwarder = getRoleMember(CURATOR_ROLE, 0);
+        return curatorRegistry.getCuratorByForwarder(curatorForwarder);
+    }
+
+    /**
      * @notice Approve a curator-strategy combination for this pod
      * @param strategy Address of the strategy
      * @dev Only callable by owner or admin
@@ -517,16 +503,17 @@ contract EnhancedBitcoinPod is
             hasRole(OWNER_ROLE, msg.sender) || hasRole(ADMIN_ROLE, msg.sender),
             "Not authorized"
         );
+        
+        address assignedCurator = this.getAssignedCurator();
         require(assignedCurator != address(0), "No curator assigned");
         require(strategy != address(0), "Strategy cannot be zero");
         require(
-            curatorRegistry.curatorStrategies(assignedCurator, strategy),
+            curatorRegistry.isStrategyApprovedForCurator(assignedCurator, strategy),
             "Strategy not approved for curator in registry"
         );
-        require(!approvedCuratorStrategies[strategy], "Strategy already approved for pod");
+        require(_podApprovedStrategy != strategy, "Strategy already approved for pod");
 
-        approvedCuratorStrategies[strategy] = true;
-        _podApprovedStrategies.add(strategy);
+        _podApprovedStrategy = strategy;
 
         emit CuratorStrategyApprovedForPod(assignedCurator, strategy);
     }
@@ -540,15 +527,37 @@ contract EnhancedBitcoinPod is
             hasRole(OWNER_ROLE, msg.sender) || hasRole(ADMIN_ROLE, msg.sender),
             "Not authorized"
         );
-        require(approvedCuratorStrategies[strategy], "Strategy not approved for pod");
+        require(_podApprovedStrategy == strategy, "Strategy not approved for pod");
 
-        approvedCuratorStrategies[strategy] = false;
-        _podApprovedStrategies.remove(strategy);
+        address assignedCurator = this.getAssignedCurator();
+        _podApprovedStrategy = address(0);
 
         emit CuratorStrategyRemovedFromPod(assignedCurator, strategy);
     }
 
-    
+    /**
+     * @notice Set the curator for this pod
+     * @param _curator Address of the new curator
+     * @dev Only callable by the pod manager
+     */
+    function setPodCurator(address _curator) external {
+        require(msg.sender == podManager, "Only pod manager can set curator");
+        require(_curator != address(0), "Curator cannot be zero address");
+        require(curatorRegistry.isCuratorActive(_curator), "Curator not active");
+        
+        // Remove old curator role if exists
+        address oldCurator = this.getAssignedCurator();
+        if (oldCurator != address(0)) {
+            address oldCuratorForwarder = curatorRegistry.getCuratorInfo(oldCurator).forwarder;
+            _revokeRole(CURATOR_ROLE, oldCuratorForwarder);
+        }
+        
+        // Grant role to new curator's forwarder
+        address curatorForwarder = curatorRegistry.getCuratorInfo(_curator).forwarder;
+        _grantRole(CURATOR_ROLE, curatorForwarder);
+        
+        emit CuratorAssigned(_curator, curatorForwarder);
+    }
 
     /**
      * @notice Transfer funds to an approved strategy
@@ -568,6 +577,7 @@ contract EnhancedBitcoinPod is
         emit TokensTransferred(strategy, amount);
     }
 
+
     /**
      * @notice Get pod-approved strategies for the assigned curator
      */
@@ -583,7 +593,7 @@ contract EnhancedBitcoinPod is
     }
 
         
-     / --- Storage gap for upgradeability ---
+     // --- Storage gap for upgradeability ---
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.

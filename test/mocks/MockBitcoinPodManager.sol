@@ -4,6 +4,7 @@ pragma solidity ^0.8.12;
 import {IBitcoinPodManager} from "../../src/interfaces/IBitcoinPodManager.sol";
 import {IBitcoinPod} from "../../src/interfaces/IBitcoinPod.sol";
 import {MockBitcoinPod} from "./MockBitcoinPod.sol";
+import {EnhancedPodParams} from "../../src/interfaces/IEnhancedBitcoinPod.sol";
 
 contract MockBitcoinPodManager is IBitcoinPodManager {
     mapping(address => BitcoinDepositRequest) public podToBitcoinDepositRequest;
@@ -149,4 +150,37 @@ contract MockBitcoinPodManager is IBitcoinPodManager {
     function getMotifStakeRegistry() external pure returns (address) {
         return address(0);
     }
+
+    function isEnhancedBitcoinPod(address pod) external pure returns (bool) {
+        return false;
+    }
+
+    function getPodApprovedStrategy(address pod) external pure returns (address) {
+        return address(0);
+    }   
+
+    function getPodCurator(address pod) external pure returns (address) {
+        return address(0);
+    }
+
+    function getPodTokenHub(address pod) external pure returns (address) {
+        return address(0);
+    }
+    function getCuratorRegistry() external pure returns (address) {
+        return address(0);
+    }
+    // Should be updated to include EnhancedBitcoinPod
+    function createEnhancedPod(address operator, string memory, /*_btcAddress*/ bytes calldata /*_script*/, EnhancedPodParams calldata enhancedParams)
+        external
+        returns (address)
+    {
+        require(userToPod[msg.sender] == address(0), "User already has a pod");
+
+        address pod = address(new MockBitcoinPod(operator, address(this)));
+    }
+
+    function getTokenHubAddress() external view returns (address) {
+        return address(0);
+    }
+    
 }

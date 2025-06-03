@@ -24,7 +24,7 @@ contract ReBTCTest is Test {
         vm.startPrank(admin);
         
         reBTC = new ReBTC();
-        reBTC.initialize(admin, tokenhub, rebaser);
+        reBTC.initialize(admin);
         
         wreBTC = new WrappedReBTC();
         wreBTC.initialize(admin, address(reBTC));

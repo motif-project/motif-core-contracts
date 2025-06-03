@@ -9,6 +9,7 @@ import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeab
 import "../interfaces/IAppRegistry.sol";
 import "../interfaces/ICuratorRegistry.sol";
 import "../libraries/EIP1271SignatureUtils.sol";
+import "./CuratorForwarder.sol";
 
 /**
  * @title CuratorRegistry
@@ -232,4 +233,34 @@ contract CuratorRegistry is
 
         emit StrategyRemovedFromCurator(curator, strategy);
     }
+
+    function getAppRegistry() external view returns (address) {
+        return address(appRegistry);
+    }
+
+    function getCuratorForwarderImpl() external view returns (address) {
+        return address(curatorForwarderImpl);
+    }
+    
+    function getTotalCurators() external view returns (uint256) {
+        return totalCurators;
+    }
+
+    function getCuratorSaltIsSpent(address curator, bytes32 salt) external view returns (bool) {
+        return curatorSaltIsSpent[curator][salt];
+    }
+
+    function updateCuratorMetadata(string calldata metadataURI) external {
+        if (curators[msg.sender].curator == address(0)) revert CuratorNotRegistered();
+        if (bytes(metadataURI).length == 0 || bytes(metadataURI).length > MAX_METADATA_URI_LENGTH) {
+            revert InvalidMetadataURI();
+        }
+        curators[msg.sender].metadataURI = metadataURI;
+        emit CuratorMetadataUpdated(msg.sender, metadataURI);
+    }
+
+    function isStrategyApprovedForCurator(address curator, address strategy) external view returns (bool) {
+        return curatorStrategies[curator][strategy];
+    }
+    
 }

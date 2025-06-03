@@ -17,6 +17,7 @@ import "./EnhancedBitcoinPod.sol";
 import "../interfaces/IMotifServiceManager.sol";
 import "forge-std/console.sol";
 import "../libraries/BitcoinUtils.sol";
+import "../interfaces/IEnhancedBitcoinPod.sol";
 /**
  * @title BitcoinPodManager
  * @notice Manages Bitcoin custody pods for Clients in the MOTIF protocol
@@ -118,8 +119,10 @@ contract BitcoinPodManager is
         _motifStakeRegistry = motifStakeRegistry_;
         require(motifServiceManager_ != address(0), "MotifServiceManager cannot be zero address");
         _motifServiceManager = motifServiceManager_;
-        require(tokenHub_ != address(0), "TokenHub cannot be zero address");
-        tokenHub = tokenHub_; 
+        
+        // TokenHub can be set later
+        tokenHub = tokenHub_; // Can be address(0)
+        
         require(curatorRegistry_ != address(0), "CuratorRegistry cannot be zero address");
         curatorRegistry = ICuratorRegistry(curatorRegistry_);
         _totalTVL = 0;
@@ -623,18 +626,16 @@ contract BitcoinPodManager is
      * @param params Struct containing pod parameters
      * @return Address of the created pod
      */
-    function createEnhancedPod(address operator,
-        string memory btcAddress,
-        bytes calldata script, EnhancedPodParams calldata params) 
-        external 
-        whenNotPaused 
-        nonReentrant 
-        returns (address) 
-    {
+    function createEnhancedPod(
+        address operator,
+        string calldata btcAddress,
+        bytes calldata script, 
+        EnhancedPodParams calldata params
+    ) external whenNotPaused nonReentrant returns (address) {
+        require(tokenHub != address(0), "TokenHub not set yet");
         require(_userToPod[msg.sender] == address(0), "User already has a pod");
         require(IMotifStakeRegistry(_motifStakeRegistry).isOperatorBtcKeyRegistered(operator), "Invalid operator");
         
-
         bytes memory operatorBtcPubKey = IMotifStakeRegistry(_motifStakeRegistry).getOperatorBtcPublicKey(operator);
         
         if (!_verifyBTCAddress(btcAddress, script, operatorBtcPubKey)) {
@@ -647,22 +648,17 @@ contract BitcoinPodManager is
         }
         
         EnhancedBitcoinPod newPod = new EnhancedBitcoinPod();
-        // UPDATED: Initialize with curator and curator registry
+        
+        // Direct pass-through - no struct creation overhead!
         newPod.initialize(
-            msg.sender,     // admin
-            msg.sender,     // owner
+            msg.sender,          // admin
+            msg.sender,          // owner  
             operator,
-            params.curator,   // can be address(0)
             operatorBtcPubKey,
-            params.btcAddress,
-            params.operatorFeeBP,
-            params.curatorFeeBP,
-            params.protocolFeeBP,
-            params.protocolFeeRecipient,
-            params.remapBitcoin,
-            address(this),
-            params.tokenHub,
-            address(curatorRegistry)
+            btcAddress,
+            address(this),       // podManager
+            address(curatorRegistry),
+            params               // pass struct directly
         );
         
         _totalPods++;
@@ -672,7 +668,8 @@ contract BitcoinPodManager is
         if (params.curator != address(0)) {
             podCurators[address(newPod)] = params.curator;
         }
-        emit EnhancedPodCreated(msg.sender, address(newPod), params.operator);
+        
+        emit EnhancedPodCreated(msg.sender, address(newPod), operator, params.curator);
         
         return address(newPod);
     }
@@ -729,9 +726,7 @@ contract BitcoinPodManager is
      */
     function setTokenHub(address _tokenHub) external onlyOwner {
         require(_tokenHub != address(0), "TokenHub cannot be zero address");
-        
         tokenHub = _tokenHub;
-        
         emit TokenHubSet(_tokenHub);
     }
 
@@ -806,7 +801,7 @@ contract BitcoinPodManager is
      * @param pod Address of the pod
      * @return Address of the approved strategy
      */
-    function getPodApprovedStrategy(address pod) external view returns (address memory) {
+    function getPodApprovedStrategy(address pod) external view returns (address) {
         require(isEnhancedPod[pod], "Not an enhanced pod");
         return EnhancedBitcoinPod(pod).getPodApprovedStrategy();
     }
@@ -820,5 +815,7 @@ contract BitcoinPodManager is
         emit PodCuratorSet(pod, curator);
     }   
   
-
+    function getTokenHubAddress() external view returns (address) {
+        return tokenHub;
+    }
 }

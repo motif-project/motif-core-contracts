@@ -3,6 +3,17 @@ pragma solidity ^0.8.25;
 
 import "./IBitcoinPod.sol";
 
+// Add the struct to IEnhancedBitcoinPod
+struct EnhancedPodParams {
+    address curator;
+    uint256 operatorFeeBP;
+    uint256 curatorFeeBP;
+    uint256 protocolFeeBP;
+    address protocolFeeRecipient;
+    address remapBitcoin;
+    address tokenHub;
+}
+
 interface IEnhancedBitcoinPod is IBitcoinPod {
     // TokenHub/Delegation
     function setTokenHub(address _tokenHub) external;
@@ -10,7 +21,7 @@ interface IEnhancedBitcoinPod is IBitcoinPod {
     function setDelegationStatus(bool _isDelegated) external;
 
     // Strategies
-    function approveStrategy(address _strategy, bool _approved) external;
+    function approveCuratorStrategyForPod(address strategy) external;
     function transferToStrategy(address _strategy, uint256 _amount) external;
 
     // Token mint/burn via TokenHub
@@ -57,4 +68,15 @@ interface IEnhancedBitcoinPod is IBitcoinPod {
     event RewardsDistributed(address indexed token, uint256 amount);
     event RewardsAddressSet(address indexed rewardsAddress);
     event RewardsDistributorSet(address indexed rewardsDistributor);
+
+    function initialize(
+        address admin,
+        address owner,
+        address operator,
+        bytes memory operatorBtcPubKey,
+        string memory bitcoinAddress,
+        address podManager,
+        address curatorRegistry,
+        EnhancedPodParams calldata params
+    ) external;
 }

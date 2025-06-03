@@ -77,7 +77,7 @@ library BitcoinUtils {
         uint256 length;
 
         // Use assembly for bit manipulation
-        assembly {
+        assembly ("memory-safe") {
             let dataPtr := add(data, 32)
             let retPtr := add(ret, 32)
             let mask := sub(shl(toBits, 1), 1) // (1 << toBits) - 1
@@ -116,7 +116,7 @@ library BitcoinUtils {
     function _createChecksum(bytes memory hrp, bytes memory data) internal pure returns (bytes memory) {
         uint256[] memory values = new uint256[](hrp.length * 2 + 1 + data.length + 6);
 
-        assembly {
+        assembly ("memory-safe"){
             let valuesPtr := add(values, 32) // Point to values array data
             let hrpPtr := add(hrp, 32) // Point to hrp array data
             let hrpLen := mload(hrp) // Get hrp length
@@ -176,7 +176,7 @@ library BitcoinUtils {
 
         // Convert checksum to 5-bit array
         bytes memory checksum = new bytes(6);
-        assembly {
+        assembly ("memory-safe") {
             let checksumPtr := add(checksum, 32) // Point to checksum array data
 
             // Calculate each byte of the checksum
@@ -207,7 +207,7 @@ library BitcoinUtils {
         bytes memory converted = _convertBits(scriptPubKey, 8, 5, true);
 
         bytes memory convertedWithPrefix = new bytes(converted.length + 1); // 1 byte prefix + 32 bytes hash // 1 byte prefix + 32 bytes hash
-        assembly {
+        assembly ("memory-safe") {
             // Store 0x00 at first byte
             mstore8(add(convertedWithPrefix, 32), 0x00)
 
@@ -224,7 +224,7 @@ library BitcoinUtils {
 
         // // Combine all parts
         bytes memory combined = new bytes(convertedWithPrefix.length + checksum.length);
-        assembly {
+        assembly ("memory-safe") {
             // Copy convertedWithPrefix
             let srcPtr1 := add(convertedWithPrefix, 32)
             let destPtr := add(combined, 32)
@@ -244,7 +244,7 @@ library BitcoinUtils {
         // Create final string
         bytes memory result = new bytes(hrp.length + 1 + combined.length);
         bytes memory charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"; // Define charset here
-        assembly {
+        assembly ("memory-safe") {
             // Copy hrp
             let destPtr := add(result, 32)
             let srcPtr := add(hrp, 32)
@@ -293,7 +293,7 @@ library BitcoinUtils {
         //   pubKey1[i] = scriptBytes[i + 2]; // Start after OP_2 (0x52) and length byte (0x21)
         // pubKey2[i] = scriptBytes[i + 36]; // Start after first pubkey and second length byte (0x21)
         // }
-        assembly {
+        assembly ("memory-safe")    {
             // Copy first public key
             let pubKey1Ptr := add(pubKey1, 32) // Skip length prefix
             calldatacopy(
@@ -512,7 +512,7 @@ library BitcoinUtils {
 
     function _extractBytes(bytes calldata data, uint256 start, uint256 length) internal pure returns (bytes memory) {
         bytes memory result = new bytes(length);
-        assembly {
+        assembly ("memory-safe") {
             // Copy from calldata to memory
             calldatacopy(
                 add(result, 32), // destination (skip length prefix)

@@ -35,9 +35,7 @@ contract ReBTC is
     event TotalPooledBTCUpdated(uint256 newTotal); // Emitted on rebase
 
     function initialize(
-        address admin_,
-        address tokenhub_,
-        address rebaser_
+        address admin_
     ) public initializer {
         __ERC20_init("Remap BTC", "reBTC");
         __ERC20Permit_init("Remap BTC");
@@ -46,8 +44,11 @@ contract ReBTC is
         __Pausable_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
-        _grantRole(TOKENHUB_ROLE, tokenhub_);
-        _grantRole(REBASER_ROLE, rebaser_);
+        // TokenHub and ebaser roles shall be setup at the time of deployment or
+        // after the deployment of the token hub and rebaser contracts
+        // Mint and Burn will only work if you have the TOKENHUB_ROLE and REBASER_ROLE defined
+        //_grantRole(TOKENHUB_ROLE, tokenhub_);
+        //_grantRole(REBASER_ROLE, rebaser_);
         _bootstrapped = false;
     }
 

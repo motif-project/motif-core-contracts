@@ -10,12 +10,12 @@ import "../interfaces/ICuratorForwarder.sol";
  * @notice Forwards curator calls through registry validation
  */
 contract CuratorForwarder is Initializable {
-    address public curator;
-    address public registry;
+    address public curatorAddress;
+    address public registryAddress;
 
     function initialize(address _curator, address _registry) external initializer {
-        curator = _curator;
-        registry = _registry;
+        curatorAddress = _curator;
+        registryAddress = _registry;
     }
 
     /**
@@ -25,23 +25,23 @@ contract CuratorForwarder is Initializable {
         external 
         returns (bytes memory) 
     {
-        require(msg.sender == curator, "Only curator");
-        return ICuratorRegistry(registry).forwardCall(curator, target, data);
+        require(msg.sender == curatorAddress, "Only curator");
+        return ICuratorRegistry(registryAddress).forwardCall(curatorAddress, target, data);
     }
 
     /**
      * @notice Get the curator address. EOA or Gnosis Safe
      * @return Address of the curator
      */
-    function curator() external view returns (address) {
-        return curator;
+    function getCuratorAddress() external view returns (address) {
+        return curatorAddress;
     }
 
     /**
      * @notice Get the curator registry address
      * @return Address of the curator registry
      */
-    function registry() external view returns (address) {
-        return registry;
+    function getCuratorRegistryAddress() external view returns (address) {
+        return registryAddress;
     }
 }

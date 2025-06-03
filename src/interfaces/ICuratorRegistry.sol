@@ -180,11 +180,6 @@ interface ICuratorRegistry {
         uint256 expiry
     ) external view returns (bytes32);
 
-    // Public state variables (automatically generate getters)
-    /**
-     * @notice Mapping of curator => strategy => approved status
-     */
-    function curatorStrategies(address curator, address strategy) external view returns (bool);
 
     /**
      * @notice Mapping to track spent salts for replay protection
@@ -194,20 +189,11 @@ interface ICuratorRegistry {
     /**
      * @notice Address of the AppRegistry contract
      */
-    function appRegistry() external view returns (address);
+    function getAppRegistry() external view returns (address);
 
     /**
      * @notice Address of the CuratorForwarder implementation contract
      */
-    function curatorForwarderImpl() external view returns (address);
+    function getCuratorForwarderImpl() external view returns (address);
 
-    /**
-     * @notice Total number of registered curators
-     */
-    function totalCurators() external view returns (uint256);
-
-    /**
-     * @notice Array of all curator addresses
-     */
-    function allCurators(uint256 index) external view returns (address);
 }

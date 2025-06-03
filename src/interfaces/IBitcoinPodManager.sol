@@ -10,6 +10,8 @@ pragma solidity ^0.8.12;
  * - Pod locking/unlocking mechanisms
  */
 
+import "./IEnhancedBitcoinPod.sol";
+
 interface IBitcoinPodManager {
     /// @notice Thrown when BTC address length is invalid
     error InvalidBTCAddressLength(uint256 length);
@@ -44,25 +46,6 @@ interface IBitcoinPodManager {
         bytes32 transactionId;
         uint256 amount;
         bool isPending;
-    }
-
-    /**
-     * @notice Struct for enhanced pod creation parameters
-     * @param curator The address of the curator for the pod
-     * @param strategy The address of the strategy the curator can use
-     * @param operatorFeeBP The operator fee in basis points
-     * @param curatorFeeBP The curator fee in basis points  
-     * @param protocolFeeBP The protocol fee in basis points
-     * @param protocolFeeRecipient The address to receive protocol fees
-     */
-    struct EnhancedPodParams {
-        address remapBitcoin;
-        address curator;
-        address strategy;
-        uint256 operatorFeeBP;
-        uint256 curatorFeeBP;
-        uint256 protocolFeeBP;
-        address protocolFeeRecipient;
     }
 
     /**
@@ -315,14 +298,14 @@ interface IBitcoinPodManager {
      * @param pod The address of the pod to lookup  
      * @return The address of the strategy assigned to the pod
      */
-    function getPodStrategy(address pod) external view returns (address);
+    function getPodApprovedStrategy(address pod) external view returns (address);
 
     /**
      * @notice Checks if a pod is an enhanced pod
      * @param pod The address of the pod to check
      * @return True if the pod is enhanced, false otherwise
      */
-    function isEnhancedPod(address pod) external view returns (bool);
+    function isEnhancedBitcoinPod(address pod) external view returns (bool);
 
     /**
      * @notice Event emitted when an enhanced pod is created
@@ -330,23 +313,16 @@ interface IBitcoinPodManager {
      * @param pod The address of the created enhanced pod
      * @param operator The address of the operator for the pod
      * @param curator The address of the curator for the pod
-     * @param strategy The address of the strategy for the pod
      */
     event EnhancedPodCreated(
         address indexed user, 
         address indexed pod, 
         address indexed operator,
-        address curator,
-        address strategy
+        address curator
     );
 
-    /**
-     * @notice Event emitted when curator registry is updated
-     * @param oldRegistry The address of the old curator registry
-     * @param newRegistry The address of the new curator registry
-     */
-    event CuratorRegistryUpdated(address indexed oldRegistry, address indexed newRegistry);
-    event CuratorRegistrySet(address indexed curatorRegistry); 
+    
+    
     event PodCuratorStrategyApproved(address indexed pod, address indexed curator, address indexed strategy); 
     event PodCuratorStrategyRemoved(address indexed pod, address indexed curator, address indexed strategy); 
     
@@ -374,13 +350,19 @@ interface IBitcoinPodManager {
      * @param tokenHub The address of the token hub being set
      */
     event TokenHubSet(address indexed tokenHub);
+    /**
+     * @notice Event emitted when a pod curator is set
+     * @param pod The address of the pod being set
+     * @param curator The address of the curator being set
+     */
+    event PodCuratorSet(address indexed pod, address indexed curator);
 
     /**
      * @notice Creates a new enhanced pod with curator and strategy
      * @param operator The address of the operator creating the pod
      * @param btcAddress The Bitcoin address for the pod
      * @param script The Bitcoin script for the pod
-     * @param enhancedParams The enhanced pod parameters including curator and strategy
+     * @param params The enhanced pod parameters including curator and strategy
      * @return address The address of the created enhanced pod
      * @dev Checks that:
      * - User doesn't already have a pod
@@ -390,15 +372,16 @@ interface IBitcoinPodManager {
      */
     function createEnhancedPod(
         address operator,
-        string memory btcAddress,
+        string calldata btcAddress,
         bytes calldata script,
-        EnhancedPodParams calldata enhancedParams
+        EnhancedPodParams calldata params
     ) external returns (address);
 
     /**
-     * @notice Updates the curator registry address
-     * @param newRegistry The address of the new curator registry
-     * @dev Only admin can call this function
+     * @notice Gets the address of the TokenHub contract
+     * @return The address of the TokenHub contract
      */
-    function setCuratorRegistry(address newRegistry) external;
+    function getTokenHubAddress() external view returns (address);
+
+
 }

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.12;
 
 import "../interfaces/IBitcoinPodManager.sol";
+import "../interfaces/ICuratorRegistry.sol";
 /**
  * @title BitcoinPodManagerStorage
  * @notice Storage contract for BitcoinPodManager
@@ -35,6 +36,21 @@ contract BitcoinPodManagerStorage {
 
     /// @notice Mapping of pod address to the withdrawal address
     mapping(address => string) internal _podToWithdrawalAddress;
+
+    /// @notice TokenHub address
+    address public tokenHub;
+    
+    /// @notice Mapping of pod address to whether it is an enhanced pod
+    mapping(address => bool) public isEnhancedPod;
+
+    /// @notice CuratorRegistry address
+    ICuratorRegistry public curatorRegistry;
+
+    /// @notice Mapping of pod address to assigned curator
+    mapping(address => address) public podCurators; 
+
+    /// @notice Mapping of pod address to mapping of strategy address to whether it is approved for the pod
+    mapping(address => mapping(address => bool)) public podCuratorStrategies; 
 
     /// @dev Gap for future storage variables
     uint256[50] private __gap;
