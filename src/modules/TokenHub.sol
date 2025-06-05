@@ -122,7 +122,6 @@ contract TokenHub is
         if (!isDelegatedPod[_podAddress]) revert PodNotDelegated(_podAddress);
 
         // undelegate pod from the token hub
-        isDelegatedPod[_podAddress] = false;
         delete isDelegatedPod[_podAddress];
         emit PodUndelegatedFromTokenHub(_podAddress);
     }
@@ -153,7 +152,7 @@ contract TokenHub is
         if (shares == 0) revert ZeroArgument("shares");
         
         totalShares += shares;
-        
+        podShares[_podAddress] += shares;
         // Mint tokens with 18 decimal amount
         reBTC.mint(_recipient, reBTCAmount);
         // lock the pod // lock the bitcoinpod

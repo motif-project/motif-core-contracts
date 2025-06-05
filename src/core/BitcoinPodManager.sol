@@ -693,6 +693,8 @@ contract BitcoinPodManager is
         
         // Set delegation status on the pod
         EnhancedBitcoinPod(pod).setDelegationStatus(true);
+        // Delegate to TokenHub
+        ITokenHub(tokenHub).delegatePodToTokenHub(pod);
         
         emit PodDelegatedToTokenHub(pod, tokenHub);
     }
@@ -712,10 +714,11 @@ contract BitcoinPodManager is
     {
         require(isEnhancedPod[pod], "Not an enhanced pod");
         require(EnhancedBitcoinPod(pod).isDelegatedToTokenHub(), "Pod not delegated to TokenHub");
-        
+        require(ITokenHub(tokenHub).isDelegatedPod(pod), "Pod not delegated to TokenHub");
         // Set delegation status on the pod
         EnhancedBitcoinPod(pod).setDelegationStatus(false);
-        
+        // Undelegate from TokenHub
+        ITokenHub(tokenHub).undelegatePodFromTokenHub(pod);
         emit PodUndelegatedFromTokenHub(pod);
     }
 
