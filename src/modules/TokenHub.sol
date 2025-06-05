@@ -93,8 +93,10 @@ contract TokenHub is
         minPodSize = _minPodSize;
     }
 
-    // delegate pod to the token hub
-    function delegatePodToTokenHub(address _podAddress) external nonReentrant whenNotPaused {
+    /**
+     * @inheritdoc ITokenHub
+     */
+    function delegatePodToTokenHub(address _podAddress) external override nonReentrant whenNotPaused {
         // Check caller is the pod manager
         if (msg.sender != address(podManager)) revert NotPodManager();
 
@@ -108,13 +110,15 @@ contract TokenHub is
         // Check total Bitcoin limit
         if (totalShares + _bitcoinAmount > maxTotalBitcoin) revert ExceedsMaxTotalBitcoin(_bitcoinAmount);
 
-
         // delegate pod to the token hub
         isDelegatedPod[_podAddress] = true;
         emit PodDelegatedToTokenHub(_podAddress);
-
     }
-    function undelegatePodFromTokenHub(address _podAddress) external nonReentrant whenNotPaused {
+
+    /**
+     * @inheritdoc ITokenHub
+     */
+    function undelegatePodFromTokenHub(address _podAddress) external override nonReentrant whenNotPaused {
         // Check caller is the pod manager
         if (msg.sender != address(podManager)) revert NotPodManager();
 
@@ -125,16 +129,14 @@ contract TokenHub is
         delete isDelegatedPod[_podAddress];
         emit PodUndelegatedFromTokenHub(_podAddress);
     }
+
     /**
-     * @notice Mint tokens for a pod
-     * @param _podAddress Address of the pod
-     * @param _recipient Address to receive the minted tokens
-     * @return Amount of shares minted
+     * @inheritdoc ITokenHub
      */
     function mintTokensForPod(
         address _podAddress,
         address _recipient
-    ) external nonReentrant whenNotPaused returns (uint256) {
+    ) external override nonReentrant whenNotPaused returns (uint256) {
         // Check caller is the EnhancedBitcoinPod
         if (msg.sender != _podAddress) revert NotEnhancedBitcoinPod();
         
@@ -151,30 +153,28 @@ contract TokenHub is
         uint256 shares = reBTC.btcToShares(reBTCAmount);
         if (shares == 0) revert ZeroArgument("shares");
         
+        // Update share tracking
         totalShares += shares;
         podShares[_podAddress] += shares;
+        
         // Mint tokens with 18 decimal amount
         reBTC.mint(_recipient, reBTCAmount);
-        // lock the pod // lock the bitcoinpod
-        // lock the pod to prevent any further minting or burning. Stops withdrawal of Bitcoin from the pod
-        IBitcoinPod(_podAddress).lock(); 
-        emit SharesMinted(_recipient, shares, reBTCAmount);
         
+        // Lock the pod to prevent any further minting or burning
+        IBitcoinPod(_podAddress).lock(); 
+        
+        emit SharesMinted(_recipient, shares, reBTCAmount);
         return shares;
     }
-    
+
     /**
-     * @notice Burn tokens for a pod
-     * @param _podAddress Address of the pod
-     * @param _shares Amount of shares to burn
-     * @param _owner Address of the token owner
-     * @return Amount of Bitcoin released
+     * @inheritdoc ITokenHub
      */
     function burnTokensForPod(
         address _podAddress,
         uint256 _shares,
         address _owner
-    ) external nonReentrant whenNotPaused returns (uint256) {
+    ) external override nonReentrant whenNotPaused returns (uint256) {
         // Check caller is the EnhancedBitcoinPod
         if (msg.sender != _podAddress) revert NotEnhancedBitcoinPod();
         
@@ -193,14 +193,47 @@ contract TokenHub is
         // Burn shares
         reBTC.burnShares(_owner, _shares);
         
-        
+        // Update share tracking
         totalShares -= _shares;
         delete podShares[_podAddress];
+        
         emit SharesBurned(_owner, _shares, btcAmount);
-        IBitcoinPod(_podAddress).unlock(); // unlock the pod to allow withdrawal of Bitcoin from the pod after burning
+        
+        // Unlock the pod to allow withdrawal
+        IBitcoinPod(_podAddress).unlock();
+        
         return btcAmount;
     }
-    
+
+    /**
+     * @inheritdoc ITokenHub
+     */
+    function isPodDelegated(address _podAddress) external view override returns (bool) {
+        return isDelegatedPod[_podAddress];
+    }
+
+    /**
+     * @inheritdoc ITokenHub
+     */
+    function getSharesForPod(address _podAddress) external view override returns (uint256) {
+        return podShares[_podAddress];
+    }
+
+    /**
+     * @inheritdoc ITokenHub
+     */
+    function getSharesByPooledBitcoin(uint256 _bitcoinAmount) external view override returns (uint256) {
+        uint256 reBTCAmount = btcToReBTC(_bitcoinAmount);
+        return reBTC.btcToShares(reBTCAmount);
+    }
+
+    /**
+     * @inheritdoc ITokenHub
+     */
+    function getTotalShares() external view override returns (uint256) {
+        return totalShares;
+    }
+
     /**
      * @notice Set protocol limits
      * @param _maxTotalBitcoin Maximum total Bitcoin in the protocol
@@ -213,57 +246,21 @@ contract TokenHub is
         maxTotalBitcoin = _maxTotalBitcoin;
         minPodSize = _minPodSize;
     }
-    
+
     /**
      * @notice Emergency pause
      */
     function emergencyPause() external onlyRole(EMERGENCY_ROLE) {
         _pause();
     }
-    
+
     /**
      * @notice Resume after pause
      */
     function resume() external onlyRole(ADMIN_ROLE) {
         _unpause();
     }
-    
-    /**
-     * @notice Check if a pod is delegated
-     * @param _podAddress Address of the pod
-     * @return Whether the pod is delegated
-     */
-    function isPodDelegated(address _podAddress) external view override returns (bool) {
-        return isDelegatedPod[_podAddress];
-    }
-    
-    /**
-     * @notice Get shares for a pod
-     * @param _podAddress Address of the pod
-     * @return Number of shares
-     */
-    function getSharesForPod(address _podAddress) external view returns (uint256) {
-        return podShares[_podAddress];
-    }
-    
-    /**
-     * @notice Get shares by pooled Bitcoin
-     * @param _bitcoinAmount Amount of Bitcoin in 8 decimals
-     * @return Number of shares
-     */
-    function getSharesByPooledBitcoin(uint256 _bitcoinAmount) external view returns (uint256) {
-        uint256 reBTCAmount = btcToReBTC(_bitcoinAmount);
-        return reBTC.btcToShares(reBTCAmount);
-    }
-    
-    
-    /**
-     * @notice Get total shares
-     * @return Total shares
-     */
-    function getTotalShares() external view returns (uint256) {
-        return totalShares;
-    }
+
     /**
      * @notice Convert from 8 decimals BTC to 18 decimals reBTC
      * @param btcAmount Amount of BTC
@@ -272,6 +269,7 @@ contract TokenHub is
     function btcToReBTC(uint256 btcAmount) public pure returns (uint256) {
         return btcAmount * 10**10; // Convert from 8 to 18 decimals
     }
+
     /**
      * @notice Convert back from 18 decimals reBTC to 8 decimals BTC
      * @param reBTCAmount Amount of reBTC

@@ -3,7 +3,7 @@ pragma solidity ^0.8.12;
 
 /**
  * @title IAppRegistry
- * @notice Interface for managing application registrations in the BitDSM protocol
+ * @notice Interface for managing application registrations in the MOTIF protocol
  * @dev Implements app registration, deregistration and status tracking functionality
  *
  * The IAppRegistry interface provides the following key functionality:
