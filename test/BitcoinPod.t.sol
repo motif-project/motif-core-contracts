@@ -29,12 +29,12 @@ contract BitcoinPodTest is Test {
         bitcoinAddress = "tb1qhlx2vgesz00s4gr6jqqhparezuhtryrkpnd7tm";
 
         // Create new pod
-        pod = new BitcoinPod(manager);
+        pod = new BitcoinPod();
         // Expect the initialization event
         vm.expectEmit(true, true, true, true);
         emit PodInitialized(address(pod), owner, operator);
         // Initialize only once
-        pod.initialize(owner, operator, operatorBtcPubKey, bitcoinAddress);
+        pod.initialize(manager, owner, operator, operatorBtcPubKey, bitcoinAddress);
     }
 
     function testInitialState() public view {
@@ -49,23 +49,23 @@ contract BitcoinPodTest is Test {
     }
 
     function testInitializeZeroAddressReverts() public {
-        BitcoinPod newPod = new BitcoinPod(manager);
+        BitcoinPod newPod = new BitcoinPod();
 
         vm.expectRevert("Owner cannot be the zero address");
-        newPod.initialize(address(0), operator, operatorBtcPubKey, bitcoinAddress);
+        newPod.initialize(manager, address(0), operator, operatorBtcPubKey, bitcoinAddress);
 
         vm.expectRevert("Operator cannot be the zero address");
-        newPod.initialize(owner, address(0), operatorBtcPubKey, bitcoinAddress);
+        newPod.initialize(manager, owner, address(0), operatorBtcPubKey, bitcoinAddress);
     }
 
     function testInitializeEmptyValuesReverts() public {
-        BitcoinPod newPod = new BitcoinPod(manager);
+        BitcoinPod newPod = new BitcoinPod();
 
         vm.expectRevert("Operator BTC public key cannot be empty");
-        newPod.initialize(owner, operator, "", bitcoinAddress);
+        newPod.initialize(manager, owner, operator, "", bitcoinAddress);
 
         vm.expectRevert("Bitcoin address cannot be empty");
-        newPod.initialize(owner, operator, operatorBtcPubKey, "");
+        newPod.initialize(manager, owner, operator, operatorBtcPubKey, "");
     }
 
     function testMint() public {

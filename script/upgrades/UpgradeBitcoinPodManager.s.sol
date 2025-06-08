@@ -13,12 +13,14 @@ contract UpgradeBitcoinPodManager is Script {
     address constant _APP_REGISTRY = 0xD2a6d4e2F8FaF4Ee980be7Ff43Fb9e47b496b475;
     address constant _MOTIF_STAKE_REGISTRY = 0x9619E0B51531ba2607d55422D66b14c570d5DE7a;
     address constant _SERVICE_MANAGER = 0x3E091B2318356b1AA1D5F0Bd846E956b48beB238;
+    address constant _POD_IMPL = address(0);
+    address constant _ENHANCED_POD_IMPL = address(0);
 
     function upgradeBitcoinPodManager() public {
         // Deploy new implementation
         bitcoinPodManager = new BitcoinPodManager();
 
-        bitcoinPodManager.initialize(_APP_REGISTRY, _MOTIF_STAKE_REGISTRY, _SERVICE_MANAGER, address(0), address(0));
+        bitcoinPodManager.initialize(_APP_REGISTRY, _MOTIF_STAKE_REGISTRY, _SERVICE_MANAGER, address(0), address(0), _POD_IMPL,_ENHANCED_POD_IMPL);
 
         // initialize the new implementation
 

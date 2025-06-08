@@ -201,7 +201,7 @@ library BitcoinUtils {
     function convertScriptPubKeyToBech32Address(bytes calldata scriptPubKey) public pure returns (string memory) {
         require(scriptPubKey.length == 32 || scriptPubKey.length == 20, "ScriptPubKey should be 32 or 22 bytes");
 
-        // HRP for mainnet
+        // HRP for Signet testnet 
         bytes memory hrp = "tb";
 
         bytes memory converted = _convertBits(scriptPubKey, 8, 5, true);

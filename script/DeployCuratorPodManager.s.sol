@@ -9,6 +9,8 @@ import {CuratorForwarder} from "../src/modules/CuratorForwarder.sol";
 import {TokenHub} from "../src/modules/TokenHub.sol";
 import {ReBTC} from "../src/token/reBTC.sol";
 import {BitcoinPodManager} from "../src/core/BitcoinPodManager.sol";
+import {BitcoinPod} from "../src/core/BitcoinPod.sol";
+import {EnhancedBitcoinPod} from "../src/core/EnhancedBitcoinPod.sol";
 
 // Comment This is a temporary script used to to deploy the newly introduced modules with the existing Holesky implementation 
 // Using the existing Motif except BitcoinPodManager
@@ -54,8 +56,16 @@ contract DeployCuratorPodManager is Script {
         );
         console.log("reBTC deployed at:", address(reBTCProxy));
 
-        // 4. Deploy BitcoinPodManager WITHOUT TokenHub initially
+        // 🆕 4. Deploy Pod Implementation Contracts (NO CONSTRUCTOR ARGS!)
+        BitcoinPod bitcoinPodImpl = new BitcoinPod();
+        EnhancedBitcoinPod enhancedBitcoinPodImpl = new EnhancedBitcoinPod();
+        
+        console.log("BitcoinPod implementation deployed at:", address(bitcoinPodImpl));
+        console.log("EnhancedBitcoinPod implementation deployed at:", address(enhancedBitcoinPodImpl));
+
+        // 🆕 5. Deploy BitcoinPodManager with implementation addresses
         BitcoinPodManager podManagerImpl = new BitcoinPodManager();
+        
         TransparentUpgradeableProxy podManagerProxy = new TransparentUpgradeableProxy(
             address(podManagerImpl),
             _PROXY_ADMIN,
@@ -66,13 +76,15 @@ contract DeployCuratorPodManager is Script {
                     _MOTIF_STAKE_REGISTRY,
                     _SERVICE_MANAGER,
                     address(0), // TokenHub address - set to 0 initially
-                    address(curatorRegistryProxy)
+                    address(curatorRegistryProxy),
+                    address(bitcoinPodImpl), // BitcoinPod implementation
+                    address(enhancedBitcoinPodImpl)  // enhanced pod implementation
                 )
             )
         );
         console.log("BitcoinPodManager deployed at:", address(podManagerProxy));
 
-        // 5. Deploy TokenHub with PodManager address
+        // 6. Deploy TokenHub with PodManager address
         TokenHub tokenHubImpl = new TokenHub();
         TransparentUpgradeableProxy tokenHubProxy = new TransparentUpgradeableProxy(
             address(tokenHubImpl),
@@ -90,30 +102,40 @@ contract DeployCuratorPodManager is Script {
         );
         console.log("TokenHub deployed at:", address(tokenHubProxy));
 
-        // 6. Set TokenHub address in PodManager (two-phase initialization)
+        // 7. Set TokenHub address in PodManager
         BitcoinPodManager(address(podManagerProxy)).setTokenHub(address(tokenHubProxy));
         console.log("TokenHub address set in PodManager");
 
-        // 7. Grant roles to TokenHub in reBTC (fix the role name here)
-        // check if deployer has Admin role in reBTC
+        // 8. Grant roles to TokenHub in reBTC
         if (ReBTC(address(reBTCProxy)).hasRole(ReBTC(address(reBTCProxy)).DEFAULT_ADMIN_ROLE(), deployer)) {
             bytes32 tokenhubRole = ReBTC(address(reBTCProxy)).TOKENHUB_ROLE();
             ReBTC(address(reBTCProxy)).grantRole(tokenhubRole, address(tokenHubProxy));
+            console.log("TOKENHUB_ROLE granted to TokenHub");
         } else {
             console.log("Deployer does not have DEFAULT_ADMIN_ROLE in reBTC");
         }
-        
-        console.log("TOKENHUB_ROLE granted to TokenHub");
 
-        // 8. Bootstrap reBTC with initial liquidity
+        // 9. Bootstrap reBTC with initial liquidity
         ReBTC(address(reBTCProxy)).bootstrap();
         console.log("reBTC bootstrapped");
+
+        // 🆕 10. Verify implementation addresses are set correctly
+        address actualBitcoinImpl = BitcoinPodManager(address(podManagerProxy)).bitcoinPodImplementation();
+        address actualEnhancedImpl = BitcoinPodManager(address(podManagerProxy)).enhancedBitcoinPodImplementation();
+        
+        require(actualBitcoinImpl == address(bitcoinPodImpl), "BitcoinPod implementation mismatch");
+        require(actualEnhancedImpl == address(enhancedBitcoinPodImpl), "EnhancedBitcoinPod implementation mismatch");
+        
+        console.log(" Verified BitcoinPod implementation:", actualBitcoinImpl);
+        console.log(" Verified EnhancedBitcoinPod implementation:", actualEnhancedImpl);
 
         console.log("\n=== Deployment Summary ===");
         console.log("CuratorRegistry:", address(curatorRegistryProxy));
         console.log("reBTC:", address(reBTCProxy));
         console.log("BitcoinPodManager:", address(podManagerProxy));
         console.log("TokenHub:", address(tokenHubProxy));
+        console.log("BitcoinPod Implementation:", actualBitcoinImpl);
+        console.log("EnhancedBitcoinPod Implementation:", actualEnhancedImpl);
 
         vm.stopBroadcast();
     }

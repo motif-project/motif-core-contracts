@@ -15,9 +15,9 @@ import "../storage/BitcoinPodManagerStorage.sol";
 import "./BitcoinPod.sol";
 import "./EnhancedBitcoinPod.sol";
 import "../interfaces/IMotifServiceManager.sol";
-import "forge-std/console.sol";
 import "../libraries/BitcoinUtils.sol";
 import "../interfaces/IEnhancedBitcoinPod.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol";
 /**
  * @title BitcoinPodManager
  * @notice Manages Bitcoin custody pods for Clients in the MOTIF protocol
@@ -75,6 +75,15 @@ contract BitcoinPodManager is
     ReentrancyGuardUpgradeable,
     IBitcoinPodManager
 {
+    using Clones for address;
+    
+    // ✅ Upgradeable implementation addresses
+    address public bitcoinPodImplementation;
+    address public enhancedBitcoinPodImplementation;
+    
+    // Events for transparency
+    event ImplementationUpgraded(address indexed oldImpl, address indexed newImpl, string podType);
+
     /* @dev Ensures that the function is only callable by the `MotifServiceManager` contract.
      * This is used to restrict deposit and withdrawal verification to the `MotifServiceManager` contract
      */
@@ -110,7 +119,9 @@ contract BitcoinPodManager is
         address motifStakeRegistry_, 
         address motifServiceManager_,
         address tokenHub_,
-        address curatorRegistry_
+        address curatorRegistry_,
+         address _bitcoinPodImplementation,
+        address _enhancedBitcoinPodImplementation
     ) public initializer {
         __Ownable_init();
         __Pausable_init();
@@ -125,6 +136,11 @@ contract BitcoinPodManager is
         
         require(curatorRegistry_ != address(0), "CuratorRegistry cannot be zero address");
         curatorRegistry = ICuratorRegistry(curatorRegistry_);
+
+        require(_bitcoinPodImplementation != address(0), "BitcoinPod implementation cannot be zero");
+        require(_enhancedBitcoinPodImplementation != address(0), "EnhancedBitcoinPod implementation cannot be zero");
+        bitcoinPodImplementation = _bitcoinPodImplementation;
+        enhancedBitcoinPodImplementation = _enhancedBitcoinPodImplementation;
         _totalTVL = 0;
         _totalPods = 0;
     }
@@ -226,25 +242,20 @@ contract BitcoinPodManager is
         require(IMotifStakeRegistry(_motifStakeRegistry).isOperatorBtcKeyRegistered(operator), "Invalid operator");
 
         bytes memory operatorBtcPubKey = IMotifStakeRegistry(_motifStakeRegistry).getOperatorBtcPublicKey(operator);
-        // console.logBytes(operatorBtcPubKey);
-        // verify the btc address
+        
         if (!_verifyBTCAddress(btcAddress, script, operatorBtcPubKey)) {
             revert("Invalid BTC address");
         }
 
-        // console.log("isBtcAddress", isBtcAddress);
-        // emit BTCAddressVerified(operator, btcAddress);
-        // create the pod
-        BitcoinPod newPod = new BitcoinPod(address(this));
-        newPod.initialize(msg.sender, operator, operatorBtcPubKey, btcAddress);
-        // increment the total pods
+        // CLONE INSTEAD OF NEW - Saves ~20KB
+        address newPod = bitcoinPodImplementation.clone();
+        BitcoinPod(newPod).initialize(address(this), msg.sender, operator, operatorBtcPubKey, btcAddress);
+        
         _totalPods++;
-        // set the user to pod mapping
-        _setUserPod(msg.sender, address(newPod));
+        _setUserPod(msg.sender, newPod);
 
-        emit PodCreated(msg.sender, address(newPod), operator);
-        // return the pod address
-        return address(newPod);
+        emit PodCreated(msg.sender, newPod, operator);
+        return newPod;
     }
 
     /**
@@ -642,36 +653,34 @@ contract BitcoinPodManager is
             revert("Invalid BTC address");
         }
         
-        // NEW: Validate curator if provided
         if (params.curator != address(0)) {
             require(curatorRegistry.isCuratorActive(params.curator), "Curator not active in registry");
         }
         
-        EnhancedBitcoinPod newPod = new EnhancedBitcoinPod();
+        // CLONE INSTEAD OF NEW - Saves ~25KB  
+        address newPod = enhancedBitcoinPodImplementation.clone();
         
-        // Direct pass-through - no struct creation overhead!
-        newPod.initialize(
-            msg.sender,          // admin
-            msg.sender,          // owner  
+        EnhancedBitcoinPod(newPod).initialize(
+            msg.sender,
+            msg.sender,
             operator,
             operatorBtcPubKey,
             btcAddress,
-            address(this),       // podManager
+            address(this),
             address(curatorRegistry),
-            params               // pass struct directly
+            params
         );
         
         _totalPods++;
-        _setUserPod(msg.sender, address(newPod));
-        isEnhancedPod[address(newPod)] = true;
-        // NEW: Track pod-curator relationship
+        _setUserPod(msg.sender, newPod);
+        isEnhancedPod[newPod] = true;
+        
         if (params.curator != address(0)) {
-            podCurators[address(newPod)] = params.curator;
+            podCurators[newPod] = params.curator;
         }
         
-        emit EnhancedPodCreated(msg.sender, address(newPod), operator, params.curator);
-        
-        return address(newPod);
+        emit EnhancedPodCreated(msg.sender, newPod, operator, params.curator);
+        return newPod;
     }
 
     /**
@@ -820,5 +829,69 @@ contract BitcoinPodManager is
   
     function getTokenHubAddress() external view returns (address) {
         return tokenHub;
+    }
+
+    /**
+     * @notice Upgrade BitcoinPod implementation
+     * @param newImplementation Address of the new implementation
+     * @dev Only callable by owner, affects NEW pods only
+     */
+    function upgradeBitcoinPodImplementation(address newImplementation) 
+        external 
+        onlyOwner 
+    {
+        require(newImplementation != address(0), "Implementation cannot be zero");
+        require(newImplementation != bitcoinPodImplementation, "Same implementation");
+        
+        // Optional: Verify it's a valid BitcoinPod implementation
+        require(_isValidBitcoinPodImplementation(newImplementation), "Invalid implementation");
+        
+        address oldImpl = bitcoinPodImplementation;
+        bitcoinPodImplementation = newImplementation;
+        
+        emit ImplementationUpgraded(oldImpl, newImplementation, "BitcoinPod");
+    }
+    
+    /**
+     * @notice Upgrade EnhancedBitcoinPod implementation  
+     * @param newImplementation Address of the new implementation
+     * @dev Only callable by owner, affects NEW pods only
+     */
+    function upgradeEnhancedBitcoinPodImplementation(address newImplementation) 
+        external 
+        onlyOwner 
+    {
+        require(newImplementation != address(0), "Implementation cannot be zero");
+        require(newImplementation != enhancedBitcoinPodImplementation, "Same implementation");
+        
+        // Optional: Verify it's a valid EnhancedBitcoinPod implementation
+        require(_isValidEnhancedBitcoinPodImplementation(newImplementation), "Invalid implementation");
+        
+        address oldImpl = enhancedBitcoinPodImplementation;
+        enhancedBitcoinPodImplementation = newImplementation;
+        
+        emit ImplementationUpgraded(oldImpl, newImplementation, "EnhancedBitcoinPod");
+    }
+    
+    /**
+     * @notice Verify if address is a valid BitcoinPod implementation
+     */
+    function _isValidBitcoinPodImplementation(address impl) internal view returns (bool) {
+        try BitcoinPod(impl).manager() returns (address) {
+            return true;
+        } catch {
+            return false;
+        }
+    }
+    
+    /**
+     * @notice Verify if address is a valid EnhancedBitcoinPod implementation
+     */
+    function _isValidEnhancedBitcoinPodImplementation(address impl) internal view returns (bool) {
+        try EnhancedBitcoinPod(impl).podManager() returns (address) {
+            return true;
+        } catch {
+            return false;
+        }
     }
 }

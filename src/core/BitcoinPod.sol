@@ -30,7 +30,7 @@ import "./BaseBitcoinPod.sol";
  */
 contract BitcoinPod is Initializable, BaseBitcoinPod, OwnableUpgradeable {
     /// @notice Address of the BitcoinPodManager contract that manages this pod
-    address public immutable manager;
+    address public manager;
 
     /**
      * @notice Modifier to ensure only the manager contract can perform an action
@@ -38,17 +38,6 @@ contract BitcoinPod is Initializable, BaseBitcoinPod, OwnableUpgradeable {
     modifier onlyManager() override {
         require(msg.sender == manager, "Only manager can perform this action");
         _;
-    }
-
-    /**
-     * @notice Initializes the immutable manager address
-     * @param _manager Address of the BitcoinPodManager contract that manages this pod
-     */
-    constructor(address _manager) {
-        require(_manager != address(0), "Manager address cannot be zero");
-        require(_manager != msg.sender, "Manager cannot be the pod itself");
-        manager = _manager;
-        //_disableInitializers();
     }
 
     /**
@@ -64,6 +53,7 @@ contract BitcoinPod is Initializable, BaseBitcoinPod, OwnableUpgradeable {
      * - Initializes pod as unlocked and active
      */
     function initialize(
+        address _manager,
         address _owner,
         address _operator,
         bytes memory _operatorBtcPubKey,
@@ -73,12 +63,15 @@ contract BitcoinPod is Initializable, BaseBitcoinPod, OwnableUpgradeable {
         require(bytes(_btcAddress).length > 0, "Bitcoin address cannot be empty");
         require(_operator != address(0), "Operator cannot be the zero address");
         require(_owner != address(0), "Owner cannot be the zero address");
-
+        require(_manager != address(0), "Manager address cannot be zero");
+        require(_manager != msg.sender, "Manager cannot be the pod itself");
+        
         __Ownable_init();
         __ReentrancyGuard_init();
         _transferOwnership(_owner);
         // ...Base initializers...
         __BaseBitcoinPod_init(_operator, _operatorBtcPubKey, _btcAddress);
+        manager = _manager;
         emit PodInitialized(address(this), _owner, _operator);
     }
 }

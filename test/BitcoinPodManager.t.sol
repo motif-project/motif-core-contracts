@@ -122,6 +122,7 @@ contract MockAppRegistry {
 contract BitcoinPodManagerTest is Test {
     MotifStakeRegistry public motifStakeRegistry;
     BitcoinPodManager public podManager;
+    
     MockAppRegistry public appRegistry;
     address public testOwner;
     MockDelegationManager public delegationManager;
@@ -157,7 +158,7 @@ contract BitcoinPodManagerTest is Test {
         appRegistry.initialize(testOwner);
         podManager = new BitcoinPodManager();
         serviceManager = _deployProxiedServiceManager();
-        podManager.initialize(address(appRegistry), address(motifStakeRegistry), address(serviceManager), address(0), address(0));
+        podManager.initialize(address(appRegistry), address(motifStakeRegistry), address(serviceManager), address(0), address(0), address(0), address(0));
         //  serviceManager = new MockServiceManager(address(podManager));
 
         // initialize strategy

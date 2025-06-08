@@ -24,7 +24,8 @@ import {
 contract DeployMotif is Script {
     using stdJson for string;
     using Strings for *;
-
+    address constant _POD_IMPL = address(0);
+    address constant _ENHANCED_POD_IMPL = address(0);
     struct StrategyInfo {
         string name;
         address strategy;
@@ -125,6 +126,8 @@ contract DeployMotif is Script {
         motifImplementationAddresses.serviceManager = address(serviceManagerImpl);
 
         // Deploy BitcoinPodManager
+        // assuming BitcoinPod and EnhancedPod are already Implemented and deployed
+        // If not deploy them First
         BitcoinPodManager bitcoinPodManagerImpl = new BitcoinPodManager();
         TransparentUpgradeableProxy bitcoinPodManagerProxy =
             new TransparentUpgradeableProxy(address(bitcoinPodManagerImpl), address(proxyAdmin), "");
@@ -142,8 +145,7 @@ contract DeployMotif is Script {
         MotifStakeRegistry(address(motifStakeRegistryProxy)).initialize(address(serviceManagerProxy), thresholdWeight, quorum);
         // Initialize BitcoinPodManager
         BitcoinPodManager(address(bitcoinPodManagerProxy)).initialize(
-            address(appRegistry), address(motifStakeRegistryProxy), address(serviceManagerProxy), address(0), address(0)
-        );
+            address(appRegistry), address(motifStakeRegistryProxy), address(serviceManagerProxy), address(0), address(0), _POD_IMPL, _ENHANCED_POD_IMPL);
 
         motifStakeRegistry = MotifStakeRegistry(address(motifStakeRegistryProxy));
         bitcoinPodManager = BitcoinPodManager(address(bitcoinPodManagerProxy));
