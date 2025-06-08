@@ -714,7 +714,7 @@ contract BitcoinPodManager is
     {
         require(isEnhancedPod[pod], "Not an enhanced pod");
         require(EnhancedBitcoinPod(pod).isDelegatedToTokenHub(), "Pod not delegated to TokenHub");
-        require(ITokenHub(tokenHub).isDelegatedPod(pod), "Pod not delegated to TokenHub");
+        require(ITokenHub(tokenHub).isPodDelegated(pod), "Pod not delegated to TokenHub");
         // Set delegation status on the pod
         EnhancedBitcoinPod(pod).setDelegationStatus(false);
         // Undelegate from TokenHub

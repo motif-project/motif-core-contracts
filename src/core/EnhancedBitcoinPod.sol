@@ -48,9 +48,6 @@ contract EnhancedBitcoinPod is
     IERC20Upgradeable public reBTC;
     uint256 public podShares;
 
-    // Strategy registry
-    mapping(address => bool) public approvedStrategies;
-
     // Reward tracking
     struct RewardToken {
         address token;
@@ -66,12 +63,37 @@ contract EnhancedBitcoinPod is
     ICuratorRegistry public curatorRegistry;
     
     // Pod-level curator-strategy approvals. Only one strategy can be approved for a pod
+    // Strategy registry
     address private _podApprovedStrategy;
 
     // Events
     event CuratorAssigned(address indexed curator, address indexed forwarder);
     event CuratorStrategyApprovedForPod(address indexed curator, address indexed strategy);
     event CuratorStrategyRemovedFromPod(address indexed curator, address indexed strategy);
+
+    // EIP-712 constants
+    bytes32 private constant TRANSFER_TO_STRATEGY_TYPEHASH = 
+        keccak256("TransferToStrategy(address owner,address strategy,uint256 amount,uint256 nonce,uint256 deadline)");
+
+    bytes32 private constant DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+
+    bytes32 private immutable DOMAIN_SEPARATOR;
+
+    // Nonce tracking for replay protection
+    mapping(address => uint256) public nonces;
+
+    constructor() {
+        _disableInitializers(); 
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                DOMAIN_TYPEHASH,
+                keccak256(bytes("EnhancedBitcoinPod")),
+                block.chainid,
+                address(this)
+            )
+        );
+    }
 
     /**
      * @notice Initialize the EnhancedBitcoinPod
@@ -215,7 +237,6 @@ contract EnhancedBitcoinPod is
      */
     function reportYield(uint256 _amount) external override whenNotPaused nonReentrant {
         require(
-            approvedStrategies[msg.sender] || 
             hasRole(ADMIN_ROLE, msg.sender) || 
             hasRole(CURATOR_ROLE, msg.sender), 
             "Not authorized"
@@ -332,7 +353,6 @@ contract EnhancedBitcoinPod is
      * @dev Only callable by approved strategies
      */
     function reportRewards(address _token, uint256 _amount) external override whenNotPaused nonReentrant {
-        require(approvedStrategies[msg.sender], "Not an approved strategy");
         require(rewardTokens[_token].token != address(0), "Token not supported");
         require(_amount > 0, "Amount must be greater than 0");
         require(rewardsAddress != address(0), "Rewards address not set");
@@ -560,9 +580,9 @@ contract EnhancedBitcoinPod is
     }
 
     /**
-     * @notice Transfer funds to an approved strategy
+     * @notice Transfer user's approved tokens to strategy
      * @param strategy Address of the strategy
-     * @param amount Amount to transfer
+     * @param amount Amount to transfer from user's wallet
      */
     function transferToStrategy(address strategy, uint256 amount) 
         external 
@@ -573,10 +593,28 @@ contract EnhancedBitcoinPod is
     {
         require(amount > 0, "Amount must be greater than 0");
         
-        reBTC.safeTransfer(strategy, amount);
+        // Get pod owner
+        address podOwner = getRoleMember(OWNER_ROLE, 0);
+        
+        // Transfer from user's wallet to strategy
+        reBTC.safeTransferFrom(podOwner, strategy, amount);
         emit TokensTransferred(strategy, amount);
     }
 
+    /**
+     * @notice Owner directly transfers tokens to strategy
+     * @param strategy Address of the strategy
+     * @param amount Amount to transfer
+     */
+    function ownerTransferToStrategy(address strategy, uint256 amount) 
+        external 
+        onlyRole(OWNER_ROLE)
+        whenNotPaused 
+    {
+        require(_podApprovedStrategy == strategy, "Strategy not approved for Pod");
+        reBTC.safeTransferFrom(msg.sender, strategy, amount);
+        emit TokensTransferred(strategy, amount);
+    }
 
     /**
      * @notice Get pod-approved strategies for the assigned curator
@@ -592,8 +630,94 @@ contract EnhancedBitcoinPod is
         return _podApprovedStrategy == strategy;
     }
 
+    /**
+     * @notice Get curator forwarder address for ERC20 approvals
+     * @return Address that user should approve for token transfers
+     */
+    function getCuratorForwarderForApproval() external view returns (address) {
+        uint256 curatorRoleMembers = getRoleMemberCount(CURATOR_ROLE);
+        if (curatorRoleMembers == 0) return address(0);
+        return getRoleMember(CURATOR_ROLE, 0); // This is the forwarder address
+    }
+
+    /**
+     * @notice Execute presigned transfer to strategy
+     * @param owner Address of the token owner (pod owner)
+     * @param strategy Address of the strategy
+     * @param amount Amount to transfer
+     * @param deadline Signature expiry timestamp
+     * @param v Signature parameter
+     * @param r Signature parameter
+     * @param s Signature parameter
+     */
+    function transferToStrategyWithSignature(
+        address owner,
+        address strategy,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external 
+        whenNotPaused 
+        nonReentrant 
+        onlyAuthorizedCuratorForStrategy(strategy)
+    {
+        require(deadline >= block.timestamp, "Signature expired");
+        require(amount > 0, "Amount must be greater than 0");
         
-     // --- Storage gap for upgradeability ---
+        // Verify owner is the pod owner
+        require(hasRole(OWNER_ROLE, owner), "Invalid owner");
+        
+        // Build the signature hash
+        bytes32 structHash = keccak256(
+            abi.encode(
+                TRANSFER_TO_STRATEGY_TYPEHASH,
+                owner,
+                strategy,
+                amount,
+                nonces[owner]++, // Increment nonce for replay protection
+                deadline
+            )
+        );
+        
+        bytes32 hash = keccak256(
+            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash)
+        );
+        
+        // Verify signature
+        address signer = ecrecover(hash, v, r, s);
+        require(signer == owner, "Invalid signature");
+        
+        // Execute transfer
+        reBTC.safeTransferFrom(owner, strategy, amount);
+        emit TokensTransferred(strategy, amount);
+    }
+
+    /**
+     * @notice Get the current nonce for an owner
+     */
+    function getNonce(address owner) external view returns (uint256) {
+        return nonces[owner];
+    }
+
+    /**
+     * @notice Calculate domain separator for signature verification
+     */
+    function getDomainSeparator() external view returns (bytes32) {
+        return DOMAIN_SEPARATOR;
+    }
+
+    // Add a helper to check which method is available
+    function getAvailableTransferMethods(address owner, address strategy, uint256 amount) 
+        external view returns (bool canUseApproval, uint256 currentAllowance) 
+    {
+        address curatorForwarder = getRoleMember(CURATOR_ROLE, 0);
+        currentAllowance = reBTC.allowance(owner, curatorForwarder);
+        canUseApproval = currentAllowance >= amount;
+    }
+
+    // --- Storage gap for upgradeability ---
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.
