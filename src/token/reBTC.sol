@@ -33,6 +33,7 @@ contract ReBTC is
     uint256 public constant MAX_REBASE_DECREASE = 1000; // 10%
 
     event TotalPooledBTCUpdated(uint256 newTotal); // Emitted on rebase
+    event AccountUnblacklisted(address indexed account);
 
     function initialize(
         address admin_
@@ -274,11 +275,18 @@ contract ReBTC is
     */
     function blacklist(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _blacklisted[account] = true;
-    }   
+    }
+
+    function removeFromBlacklist(address account)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        _blacklisted[account] = false;
+        emit AccountUnblacklisted(account);
+    }
 
     /*
-    * @notice Blacklist function to blacklist an address
-    * @dev This function is only callable by the DEFAULT_ADMIN_ROLE
+    * @notice Ensures an account is not blacklisted
     */
     modifier whenNotBlacklisted(address account) {
         require(!_blacklisted[account], "Account is blacklisted");
